@@ -1,1 +1,85 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Inicializa o Supabase com as variáveis de ambiente da Vercel
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default async function handler(req, res) {
+    // Apenas aceita POST (é assim que o iFood envia dados)
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    try {
+        const eventosIFood = req.body;
+        
+        // Se a chamada for apenas para validar o webhook do iFood
+        if (eventosIFood && eventosIFood.length === 0) {
+            return res.status(200).json({ status: 'OK - Validação recebida' });
+        }
+
+        // Processa cada evento recebido
+        for (const evento of eventosIFood) {
+            // 'PLC' = Placed (Novo Pedido Criado no iFood)
+            if (evento.code === 'PLC') {
+                const orderId = evento.orderId;
+                
+                // NOTA TÉCNICA PARA O DESENVOLVEDOR:
+                // No mundo real, aqui você usaria o IFOOD_CLIENT_ID para pedir ao iFood
+                // o JSON completo deste orderId. Como é uma simulação da estrutura,
+                // vamos criar o objeto do pedido com dados marcadores.
+                
+                const novoPedidoIfood = {
+                    id: orderId.slice(-4) || 'IF01',
+                    timestamp: Date.now(),
+                    data: new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
+                    cliente: "Cliente do iFood",
+                    whatsapp: "Não partilhado",
+                    endereco: "Endereço via iFood",
+                    km: "N/A",
+                    frete: 0,
+                    desconto: 0,
+                    pagamento: "Pago no App iFood",
+                    trocoPara: "",
+                    observacaoGeral: "Pedido injetado via Webhook iFood",
+                    itens: [
+                        {
+                            nome: "Pedido completo no portal iFood",
+                            quantidade: 1,
+                            preco: 0,
+                            subtotal: 0,
+                            observacao: "Verifique o Gestor de Pedidos do iFood"
+                        }
+                    ],
+                    total: 0,
+                    origem: "iFood", // Esta marcação faz a diferença no KDS!
+                    status: 'Pendente'
+                };
+
+                // Guardar na base de dados para o KDS ouvir
+                // Vamos usar a mesma estrutura que o KDS lê (neste caso, a lista de pedidos dentro do JSON)
+                // Primeiro lemos a loja, depois injetamos o pedido
+                const { data, error } = await supabase.from('sistema_loja').select('dados').eq('id', 1).single();
+                
+                if (data && data.dados) {
+                    let dbDados = data.dados;
+                    if (!dbDados.pedidos) dbDados.pedidos = [];
+                    dbDados.pedidos.unshift(novoPedidoIfood); // Coloca no topo
+                    
+                    await supabase.from('sistema_loja').update({ dados: dbDados }).eq('id', 1);
+                }
+            }
+            
+            // Aqui poderia tratar cancelamentos ('CAN') e alterar o status no KDS
+        }
+
+        // O iFood exige uma resposta 200 rápida
+        return res.status(200).json({ status: 'Eventos processados com sucesso' });
+
+    } catch (error) {
+        console.error('Erro no processamento do iFood Webhook:', error);
+        return res.status(500).json({ error: 'Erro interno no servidor' });
+    }
+}
 
