@@ -2257,41 +2257,99 @@
         // Impressão Térmica
         function abrirReciboImpressao(index) {
             const pedido = db.pedidos[index];
-            const reciboEl = document.getElementById('modal-recibo-impressao');
             
-            reciboEl.innerHTML = `
-                <div class="text-center font-bold text-sm pb-2 border-b border-dashed border-black">
+            // Cria a URL direta de navegação do Google Maps com o endereço do cliente
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(pedido.endereco + ", Manaus, Amazonas")}`;
+            
+            // Gera o QR Code
+            const qrCodeImg = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mapsUrl)}&margin=1`;
+            
+            // Layout HTML limpo focado 100% na impressora térmica (80mm ou 58mm)
+            const reciboHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Recibo - Pedido #${pedido.id}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+                    body {
+                        font-family: 'Courier Prime', monospace;
+                        font-size: 13px;
+                        color: #000;
+                        margin: 0;
+                        padding: 10px;
+                        width: 300px;
+                    }
+                    .text-center { text-align: center; }
+                    .font-bold { font-weight: bold; }
+                    .border-b { border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
+                    .border-t { border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px; }
+                    .mb-1 { margin-bottom: 5px; }
+                    .mt-2 { margin-top: 10px; }
+                    .item-linha { display: flex; justify-content: space-between; }
+                </style>
+            </head>
+            <body>
+                <div class="text-center font-bold border-b">
                     SAPIPA LANCHE<br>
                     Lanches rústicos de qualidade<br>
                     CNPJ: 00.000.000/0001-00
                 </div>
-                <div class="py-1">
-                    PEDIDO #${pedido.id} - ${pedido.data}<br>
+                <div class="border-b">
+                    <b>PEDIDO #${pedido.id}</b> - ${pedido.data}<br>
                     CLIENTE: ${pedido.cliente}<br>
                     FONE: ${pedido.whatsapp}<br>
                     ENDEREÇO: ${pedido.endereco}
                 </div>
-                <div class="border-t border-b border-dashed border-black py-1 my-1">
-                    ITENS DO PEDIDO:<br>
-                    ${pedido.itens.map(i => `${i.quantidade}x ${i.nome} - R$ ${i.subtotal.toFixed(2)} ${i.observacao ? `
-   (Obs: ${i.observacao})` : ''}`).join('<br>')}
+                <div class="border-b">
+                    <b style="font-size: 11px;">ITENS DO PEDIDO:</b><br>
+                    ${pedido.itens.map(i => `
+                        <div class="item-linha">
+                            <span>${i.quantidade}x ${i.nome}</span>
+                            <span>R$ ${i.subtotal.toFixed(2)}</span>
+                        </div>
+                        ${i.observacao ? `<div style="font-size: 11px; padding-left: 10px;">Obs: ${i.observacao}</div>` : ''}
+                    `).join('')}
                 </div>
-                <div class="space-y-0.5">
+                <div>
                     Subtotal: R$ ${(pedido.total - pedido.frete + (pedido.desconto || 0)).toFixed(2)}<br>
                     ${pedido.desconto > 0 ? `Desconto Cupom: - R$ ${pedido.desconto.toFixed(2)}<br>` : ''}
                     Taxa Entrega (${pedido.km} km): R$ ${pedido.frete.toFixed(2)}<br>
-                    <strong>TOTAL: R$ ${pedido.total.toFixed(2)}</strong><br>
-                    <br>PAGAMENTO: ${pedido.pagamento || 'N/A'}<br>
+                    <br>
+                    <strong style="font-size: 16px;">TOTAL: R$ ${pedido.total.toFixed(2)}</strong><br><br>
+                    PAGAMENTO: ${pedido.pagamento || 'N/A'}<br>
                     ${pedido.trocoPara ? `TROCO PARA: R$ ${pedido.trocoPara}<br>` : ''}
                     ${pedido.observacaoGeral ? `OBS: ${pedido.observacaoGeral}` : ''}
                 </div>
-                <div class="text-center pt-3 border-t border-dashed border-black text-[10px]">
+                
+                <!-- QR CODE DE NAVEGAÇÃO -->
+                <div class="text-center border-t mt-2">
+                    <p class="font-bold mb-1" style="font-size: 12px;">GPS DO ENTREGADOR</p>
+                    <img src="${qrCodeImg}" alt="QR Code Google Maps" style="display:block; margin: 0 auto; max-width:120px; height:auto;">
+                    <p style="font-size: 10px;">Escaneie para iniciar a rota</p>
+                </div>
+
+                <div class="text-center border-t mt-2" style="font-size: 11px;">
                     Obrigado pela preferência!<br>
                     Bom apetite!
                 </div>
-            `;
+                <script>
+                    // Aguarda o QR Code carregar na janela nova e abre o diálogo de impressão
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                        }, 800);
+                    };
+                </script>
+            </body>
+            </html>`;
 
-            document.getElementById('modal-recibo-impressao-container').classList.remove('hidden');
+            // Cria a janela flutuante separada do painel admin
+            const janelaImpressao = window.open('', '_blank', 'width=350,height=600,top=50,left=50,scrollbars=yes,resizable=yes');
+            janelaImpressao.document.write(reciboHTML);
+            janelaImpressao.document.close();
+            
+            showToast("Recibo gerado para impressão!", "success");
         }
 
         function fecharReciboImpressao() {
