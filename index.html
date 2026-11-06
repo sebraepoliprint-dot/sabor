@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sapipa Lanche - Cardápio Digital & Sistema KDS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cinzel: ["Cinzel", "serif"],
+                        poppins: ["Poppins", "sans-serif"],
+                        receipt: ["Courier Prime", "monospace"],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Poppins:wght@400;500;600;700&family=Courier+Prime:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #120905;
+            background-image: linear-gradient(rgba(18, 9, 5, 0.92), rgba(18, 9, 5, 0.95)), url('https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=1000&auto=format&fit=crop&q=60');
+            background-size: cover;
+            background-attachment: fixed;
+            color: #f3f4f6;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        .font-receipt {
+            font-family: 'Courier Prime', monospace;
+        }
+        .rust-border {
+            border: 3px solid #b45309;
+            box-shadow: inset 0 0 20px rgba(180, 83, 9, 0.4), 0 0 15px rgba(234, 88, 12, 0.3);
+        }
+        .fire-glow {
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(234, 88, 12, 0.4);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #modal-recibo-impressao, #modal-recibo-impressao * {
+                visibility: visible;
+            }
+            #modal-recibo-impressao {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+            }
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a0f0a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #b45309;
+            border-radius: 4px;
+        }
+    </style>
+    <!-- Bibliotecas para o Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SortableJS para arrastar e soltar categorias -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        /* Fallback de estilo seguro caso o Tailwind não carregue */
+        body {
+            background-color: #120905;
+            color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+        }
+        header { background-color: #000; color: #f59e0b; padding: 1rem; text-align: center; }
+        .fallback-msg { display: none; text-align: center; padding: 2rem; color: #fff; }
+    </style>
+    <!-- Supabase CDN (Banco de Dados na Nuvem) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="pb-28">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Header / Topo com Logo Estilizada -->
+    <header class="bg-gradient-to-b from-black via-zinc-950 to-zinc-900 border-b-2 border-amber-700/60 sticky top-0 z-40 shadow-2xl">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3 text-center sm:text-left">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full rust-border overflow-hidden bg-black flex items-center justify-center shrink-0 shadow-lg">
+                    <img src="https://i.imgur.com/your-logo.jpg" alt="Logo" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-cinzel font-black tracking-widest text-amber-500 fire-glow">SAPIPA <span >L</span>ANCHE</h1>
+                    <p class="text-xs italic text-amber-200/80 font-serif">Lanches rústicos de qualidade</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                <div id="store-status-badge" class="px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 shadow">
+                    <!-- Gerado via JS -->
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Barra de Busca -->
+    <div class="max-w-4xl mx-auto px-4 mt-6">
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-amber-500">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
+            <input type="text" id="input-busca" oninput="filtrarCardapio()" placeholder="Procurar lanches, pizzas, bebidas..." class="w-full pl-11 pr-4 py-3.5 bg-zinc-900/90 border border-amber-700/50 rounded-2xl shadow-inner text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm">
+        </div>
+    </div>
+
+    <!-- Navegação de Categorias -->
+    <div class="max-w-4xl mx-auto px-4 mt-4">
+        <div id="categorias-container" class="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+            <!-- Gerado via JS -->
+        </div>
+    </div>
+
+    <!-- Lista de Produtos -->
+    <main class="max-w-4xl mx-auto px-4 mt-4">
+        <div id="produtos-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Gerado via JS -->
+        </div>
+    </main>
+
+    <!-- Carrinho Flutuante -->
+    <div id="carrinho-flutuante" class="fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-md border-t-2 border-amber-600/60 p-4 shadow-2xl z-30 hidden">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div>
+                <p class="text-xs text-amber-300 font-medium"><span id="qtd-carrinho" class="font-bold text-white">0</span> itens no carrinho</p>
+                <p class="text-xl font-cinzel font-black text-amber-400" id="subtotal-carrinho">R$ 0,00</p>
+            </div>
+            <button onclick="abrirCarrinhoModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2 border border-amber-400/40">
+                <i class="fa-solid fa-bag-shopping"></i> Ver Carrinho
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Personalização do Produto -->
+    <div id="modal-produto" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-zinc-900 border-2 border-amber-600/60 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col animate-fade-in">
+            <div class="relative">
+                <img id="modal-prod-img" src="" alt="Produto" class="w-full h-52 object-cover">
+                <button onclick="fecharModalProduto()" class="absolute top-3 right-3 bg-black/70 hover:bg-black text-white w-9 h-9 rounded-full flex items-center justify-center transition border border-amber-500/50">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-2">
+                <h2 id="modal-prod-nome" class="text-2xl font-cinzel font-black text-amber-400">Nome do Produto</h2>
+                <p id="modal-prod-desc" class="text-sm text-zinc-300">Descrição detalhada do lanche.</p>
+                <p id="modal-prod-preco" class="text-xl font-black text-amber-500 pt-2">R$ 0,00</p>
+
+                <div class="mt-4 pt-4 border-t border-zinc-800">
+                    <label class="block text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">Observações para o preparo:</label>
+                    <textarea id="modal-prod-obs" placeholder="Ex: Sem cebola, ponto da carne bem passado..." class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-zinc-800 bg-zinc-950 flex items-center gap-4">
+                <div class="flex items-center border border-amber-700/60 rounded-2xl bg-zinc-900">
+                    <button onclick="alterarQtdModal(-1)" class="px-3.5 py-3 text-amber-400 hover:bg-zinc-800 rounded-l-2xl"><i class="fa-solid fa-minus"></i></button>
+                    <span id="modal-prod-qtd" class="px-4 font-bold text-sm text-white">1</span>
+                    <button onclick="alterarQtdModal(1)" class="px-3.5 py-3 text-amber-400 hover:bg-zinc-800 rounded-r-2xl"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <button onclick="adicionarAoCarrinhoDoModal()" class="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition text-center">
+                    Adicionar • <span id="modal-total-btn">R$ 0,00</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do Carrinho -->
+    <div id="modal-carrinho" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-zinc-900 border-2 border-amber-600/60 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col animate-fade-in">
+            <div class="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
+                <h3 class="font-cinzel font-bold text-lg text-amber-400 flex items-center gap-2"><i class="fa-solid fa-bag-shopping text-orange-500"></i> O seu Pedido</h3>
+                <button onclick="fecharCarrinhoModal()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                <!-- Lista de Itens -->
+                <div>
+                    <h4 class="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">Itens Selecionados:</h4>
+                    <div id="lista-itens-carrinho" class="space-y-2"></div>
+                </div>
+
+                <!-- Cupom de Desconto -->
+                <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex gap-2 items-center">
+                    <input type="text" id="input-codigo-cupom" placeholder="Código do cupom" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-xs text-white uppercase">
+                    <button onclick="aplicarCupom()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition">Aplicar</button>
+                </div>
+                <div id="status-cupom-msg" class="text-xs text-green-400 font-medium hidden"></div>
+
+                <!-- Dados Básicos do Cliente -->
+                <div class="border-t border-zinc-800 pt-3 space-y-3">
+                    <h4 class="text-xs font-bold text-amber-300 uppercase tracking-wider">Seus Dados para Entrega:</h4>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-zinc-400 mb-1">Nome Completo:</label>
+                            <input type="text" id="cliente-nome" placeholder="Seu nome" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-zinc-400 mb-1">WhatsApp / Telefone:</label>
+                            <input type="text" id="cliente-whatsapp" placeholder="(92) 99999-9999" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-zinc-400 mb-1">Endereço Completo / Bairro / Nº:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="cliente-endereco" placeholder="Ex: Rua A, 123 - Centro" class="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <button onclick="calcularFrete()" class="bg-zinc-800 hover:bg-zinc-700 text-amber-300 px-3 rounded-xl text-xs font-bold transition border border-amber-700/50">Calcular KM</button>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-zinc-800">
+                        <label class="block text-[11px] font-bold text-amber-300 uppercase mb-2"><i class="fa-solid fa-wallet"></i> Forma de Pagamento:</label>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <label class="flex items-center gap-2 bg-zinc-950 border border-zinc-700 p-2.5 rounded-xl cursor-pointer hover:border-amber-500 transition">
+                                <input type="radio" name="pagamento" value="PIX" onchange="atualizarOpcoesPagamento()" class="accent-amber-500">
+                                <span class="text-xs font-bold text-white flex items-center gap-1"><i class="fa-brands fa-pix text-emerald-400"></i> PIX (Transferência)</span>
+                            </label>
+                            <label class="flex items-center gap-2 bg-zinc-950 border border-zinc-700 p-2.5 rounded-xl cursor-pointer hover:border-amber-500 transition">
+                                <input type="radio" name="pagamento" value="Entrega" onchange="atualizarOpcoesPagamento()" checked class="accent-amber-500">
+                                <span class="text-xs font-bold text-white flex items-center gap-1"><i class="fa-solid fa-motorcycle text-zinc-400"></i> Pagar na Entrega</span>
+                            </label>
+                        </div>
+
+                        <!-- Opções PIX -->
+                        <div id="pagamento-pix-info" class="hidden bg-emerald-950/20 border border-emerald-900/50 p-3 rounded-xl mb-3">
+                            <p class="text-[11px] text-zinc-300 mb-2">Copie a nossa chave PIX abaixo, faça o pagamento no seu banco e <strong>envie o comprovativo junto com o pedido no WhatsApp.</strong></p>
+                            <div class="flex gap-2">
+                                <input type="text" id="chave-pix-copiar" readonly value="" class="flex-1 bg-black/50 border border-emerald-900/50 rounded-lg p-2 text-xs text-emerald-400 font-bold select-all">
+                                <button onclick="copiarChavePix()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 rounded-lg text-xs font-bold transition">Copiar</button>
+                            </div>
+                        </div>
+
+                        <!-- Opções Pagar na Entrega -->
+                        <div id="pagamento-entrega-info" class="space-y-3 mb-3">
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-1.5 cursor-pointer text-xs text-zinc-300">
+                                    <input type="radio" name="metodo_entrega" value="Cartão" onchange="atualizarOpcoesPagamento()" checked class="accent-amber-500"> Cartão (Maquininha)
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer text-xs text-zinc-300">
+                                    <input type="radio" name="metodo_entrega" value="Dinheiro" onchange="atualizarOpcoesPagamento()" class="accent-amber-500"> Dinheiro
+                                </label>
+                            </div>
+                            
+                            <div id="div-troco" class="hidden">
+                                <label class="block text-[11px] font-bold text-zinc-400 mb-1">Precisa de troco para quanto?</label>
+                                <input type="number" id="cliente-troco" placeholder="Ex: 100" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-zinc-400 mb-1">Observações do Pedido:</label>
+                            <textarea id="cliente-obs-geral" placeholder="Ex: Campainha quebrada, deixar na portaria..." class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 h-12"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-zinc-800 bg-zinc-950 space-y-3">
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Subtotal:</span>
+                        <span id="resumo-subtotal">R$ 0,00</span>
+                    </div>
+                    <div id="linha-desconto-resumo" class="flex justify-between text-green-400 hidden">
+                        <span>Desconto Cupom:</span>
+                        <span id="resumo-desconto">- R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Taxa de Entrega (<span id="resumo-km">0</span> km <span id="badge-frete-gratis-info" class="text-[10px] text-emerald-400 font-bold">• Grátis até 1.5km</span>):</span>
+                        <span id="resumo-frete">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-base font-cinzel font-black text-white pt-2 border-t border-zinc-800">
+                        <span>Total Geral:</span>
+                        <span id="resumo-total" class="text-amber-400">R$ 0,00</span>
+                    </div>
+                    <div id="cashback-ganho-msg" class="text-[11px] text-amber-300 font-medium pt-1"></div>
+                </div>
+
+                <button onclick="enviarPedidoWhatsApp()" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3.5 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 border border-green-500/50">
+                    <i class="fa-brands fa-whatsapp text-xl"></i> Enviar Pedido via WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Recibo para Impressão Térmica -->
+    <div id="modal-recibo-impressao-container" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white text-black w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in">
+            <div class="p-3 bg-zinc-200 flex justify-between items-center border-b font-bold text-xs">
+                <span>Impressão Térmica (Recibo)</span>
+                <button onclick="fecharReciboImpressao()" class="text-zinc-700 hover:text-black"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="modal-recibo-impressao" class="p-4 overflow-y-auto font-receipt text-xs leading-tight space-y-2 bg-white"></div>
+            <div class="p-3 bg-zinc-100 border-t flex gap-2">
+                <button onclick="window.print()" class="flex-1 bg-black text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-print"></i> Imprimir
+                </button>
+                <button onclick="fecharReciboImpressao()" class="bg-zinc-300 hover:bg-zinc-400 text-zinc-800 font-bold py-2.5 px-4 rounded-xl text-xs transition">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dadosIniciais = {
+            config: {
+                aberto: true,
+                whatsapp: "5592993007677",
+                whatsappEntregador: "5592993007677",
+                taxaKm: 2.00,
+                kmGratis: 1.5,
+                enderecoBase: "Rua Bandeira Branca, N°48, Aparecida, Centro - Manaus-AM",
+                cashbackPerc: 0.0,
+                chavePix: "98216-6060"
+            },
+            categorias: ["Lanches Tradicionais", "Sanduíches Especiais", "Opções Simples", "Kikão", "Porções", "Pizzas", "Sobremesas", "Bebidas"],
+            produtos: [
+                { id: 1, nome: "Hamburguer", categoria: "Lanches Tradicionais", preco: 7.00, desc: "Pão, carne, alface, tomate", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=60" },
+                { id: 2, nome: "X-Burguer", categoria: "Lanches Tradicionais", preco: 8.50, desc: "Pão, carne, queijo, alface, tomate", img: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=500&auto=format&fit=crop&q=60" },
+                { id: 3, nome: "X-Egg", categoria: "Lanches Tradicionais", preco: 10.00, desc: "Pão, carne, ovo, queijo, alface, tomate", img: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60" },
+                { id: 4, nome: "X-Maionese", categoria: "Lanches Tradicionais", preco: 10.00, desc: "Pão, carne, queijo, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&auto=format&fit=crop&q=60" },
+                { id: 5, nome: "Americano", categoria: "Lanches Tradicionais", preco: 10.00, desc: "Pão de forma, ovo, queijo, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 6, nome: "X-Salada", categoria: "Lanches Tradicionais", preco: 10.00, desc: "Pão, carne, ovo, queijo, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 7, nome: "X-Banana", categoria: "Sanduíches Especiais", preco: 12.00, desc: "Pão, carne, queijo, banana, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=60" },
+                { id: 8, nome: "X-Salada Banana", categoria: "Sanduíches Especiais", preco: 14.00, desc: "Pão, carne, ovo, queijo, banana, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=500&auto=format&fit=crop&q=60" },
+                { id: 9, nome: "X-Bacon", categoria: "Sanduíches Especiais", preco: 12.00, desc: "Pão, carne, queijo, bacon, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1553979459-d2229cdc743b?w=500&auto=format&fit=crop&q=60" },
+                { id: 10, nome: "X-Salada Bacon", categoria: "Sanduíches Especiais", preco: 14.00, desc: "Pão, carne, ovo, queijo, bacon, alface, tomate", img: "https://images.unsplash.com/photo-1553979459-d2229cdc743b?w=500&auto=format&fit=crop&q=60" },
+                { id: 11, nome: "X-Calabresa", categoria: "Sanduíches Especiais", preco: 12.00, desc: "Pão, carne, queijo, presunto, calabresa, alface, tomate", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=60" },
+                { id: 12, nome: "X-Salada Calabresa", categoria: "Sanduíches Especiais", preco: 14.00, desc: "Pão, carne, ovo, queijo, presunto, calabresa, alface, tomate", img: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=500&auto=format&fit=crop&q=60" },
+                { id: 13, nome: "X-Salsicha", categoria: "Sanduíches Especiais", preco: 12.00, desc: "Pão, carne, queijo, salsicha, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 14, nome: "X-Salada Salsicha", categoria: "Sanduíches Especiais", preco: 14.00, desc: "Pão, carne, ovo, queijo, salsicha, alface, tomate", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 15, nome: "X-Tudo", categoria: "Sanduíches Especiais", preco: 17.00, desc: "Pão, carne, ovo, salsicha, calabresa, bacon, queijo, presunto, alface, tomate", img: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 16, nome: "Misto Simples", categoria: "Opções Simples", preco: 7.00, desc: "Pão de forma, Queijo, Presunto", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 17, nome: "Misto Duplo", categoria: "Opções Simples", preco: 10.00, desc: "Pão de forma, Queijo duplo, Presunto duplo", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 18, nome: "Misto Simples com Carne", categoria: "Opções Simples", preco: 10.00, desc: "Pão de forma, Carne, Queijo, Presunto", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 19, nome: "Misto Duplo com Carne", categoria: "Opções Simples", preco: 13.00, desc: "Pão de forma, Carne, Queijo duplo, Presunto duplo", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 20, nome: "Queijo Simples", categoria: "Opções Simples", preco: 7.00, desc: "Pão, Queijo", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 21, nome: "Queijo Duplo", categoria: "Opções Simples", preco: 10.00, desc: "Pão, Queijo em dobro", img: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=60" },
+                { id: 22, nome: "Queijo Simples com Carne", categoria: "Opções Simples", preco: 10.00, desc: "Pão, Carne, Queijo", img: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60" },
+                { id: 23, nome: "Queijo Duplo com Carne", categoria: "Opções Simples", preco: 13.00, desc: "Pão, Carne, Queijo em dobro", img: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 24, nome: "Kikão Simples", categoria: "Kikão", preco: 7.00, desc: "Pão de Kikão e Salsicha", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 25, nome: "Kikão Especial", categoria: "Kikão", preco: 9.00, desc: "Kikão completo com acompanhamentos", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 26, nome: "Kikão Especial com Bacon", categoria: "Kikão", preco: 12.00, desc: "Kikão completo, mais Bacon", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 27, nome: "Kikão Especial com 2 Salsichas", categoria: "Kikão", preco: 12.00, desc: "Kikão completo com 2 Salsichas", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                { id: 28, nome: "Kikão Especial 2 Salsichas e Bacon", categoria: "Kikão", preco: 15.00, desc: "Kikão completo, 2 Salsichas e Bacon", img: "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 29, nome: "Batata Frita", categoria: "Porções", preco: 10.00, desc: "Porção de batata frita crocante", img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=60" },
+                { id: 30, nome: "Batata Frita com Calabresa", categoria: "Porções", preco: 20.00, desc: "Porção de batata frita com rodelas de calabresa", img: "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 31, nome: "Pizza Broto Tradicional", categoria: "Pizzas", preco: 10.00, desc: "Escolha o sabor: Portuguesa, Calabresa, Mussarela, Mista, Milho ou Presunto", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=60" },
+                { id: 32, nome: "Pizza Grande Tradicional", categoria: "Pizzas", preco: 35.00, desc: "Escolha o sabor: Portuguesa, Calabresa, Mussarela, Mista, Milho ou Presunto", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=60" },
+                { id: 33, nome: "Pizza Broto de Bacon", categoria: "Pizzas", preco: 15.00, desc: "Deliciosa pizza broto de bacon", img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop&q=60" },
+                { id: 34, nome: "Pizza Grande de Bacon", categoria: "Pizzas", preco: 45.00, desc: "Pizza grande caprichada com bacon", img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 35, nome: "Salada de Frutas 300ml", categoria: "Sobremesas", preco: 13.00, desc: "Frutas frescas cortadas no copo de 300ml", img: "https://images.unsplash.com/photo-1519996529931-28324d5a630e?w=500&auto=format&fit=crop&q=60" },
+                { id: 36, nome: "Salada de Frutas 500ml", categoria: "Sobremesas", preco: 15.00, desc: "Frutas frescas cortadas no copo grande de 500ml", img: "https://images.unsplash.com/photo-1519996529931-28324d5a630e?w=500&auto=format&fit=crop&q=60" },
+                { id: 37, nome: "Bolo de Chocolate", categoria: "Sobremesas", preco: 7.00, desc: "Fatia de bolo de chocolate", img: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=500&auto=format&fit=crop&q=60" },
+                { id: 38, nome: "Creme Gelado", categoria: "Sobremesas", preco: 7.00, desc: "Escolha o sabor: Maracujá, Chocolate, Morango ou Cupuaçu", img: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=500&auto=format&fit=crop&q=60" },
+                { id: 39, nome: "Brigadeiro", categoria: "Sobremesas", preco: 2.00, desc: "Unidade de brigadeiro tradicional", img: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=500&auto=format&fit=crop&q=60" },
+                
+                { id: 40, nome: "Sucos Naturais 300ml", categoria: "Bebidas", preco: 8.00, desc: "Suco da fruta feito na hora", img: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=500&auto=format&fit=crop&q=60" },
+                { id: 41, nome: "Sucos Naturais 500ml", categoria: "Bebidas", preco: 10.00, desc: "Suco da fruta grande feito na hora", img: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=500&auto=format&fit=crop&q=60" },
+                { id: 42, nome: "Água Mineral 600ml", categoria: "Bebidas", preco: 3.00, desc: "Água mineral refrescante", img: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=500&auto=format&fit=crop&q=60" },
+                { id: 43, nome: "Refrigerante 250ml", categoria: "Bebidas", preco: 3.50, desc: "Mini refrigerante 250ml", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 44, nome: "Refrigerante KS", categoria: "Bebidas", preco: 6.00, desc: "Refrigerante na garrafa de vidro", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 45, nome: "Refrigerante Lata", categoria: "Bebidas", preco: 7.00, desc: "Refrigerante em lata", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 46, nome: "Refrigerante 1 Litro (Diversos)", categoria: "Bebidas", preco: 6.00, desc: "Sabores diversos, consulte", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 47, nome: "Refrigerante 2 Litros (Diversos)", categoria: "Bebidas", preco: 8.00, desc: "Sabores diversos, consulte", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 48, nome: "Coca-Cola / Coca Zero / Fanta 1 Litro", categoria: "Bebidas", preco: 10.00, desc: "Refrigerante de 1 Litro", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 49, nome: "Coca-Cola / Coca Zero / Fanta 1.5 Litros", categoria: "Bebidas", preco: 12.00, desc: "Refrigerante de 1.5 Litros", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" },
+                { id: 50, nome: "Coca / Coca Zero / Fanta / Sprite 2 Litros", categoria: "Bebidas", preco: 15.00, desc: "Refrigerante grande de 2 Litros", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=60" }
+            ],
+            entregadores: [],
+            cupons: [],
+            pedidos: []
+        };
+
+        // Base limpa oficial para produção
+        let db = JSON.parse(localStorage.getItem('sapipa_lanche_v1')) || dadosIniciais;
+        if(db.config.kmGratis === undefined) db.config.kmGratis = 1.5;
+        if(!db.config.cashbackPerc) db.config.cashbackPerc = 5.0;
+        if(!db.config.chavePix) db.config.chavePix = "000.000.000-00";
+        if(!db.entregadores) db.entregadores = [{ id: 1, nome: "Carlos Motoboy", fone: "559299072636", veiculo: "Moto - ABC1234" }];
+        if(!db.cupons) db.cupons = [{ codigo: "BRAW10", tipo: "porcentagem", valor: 10 }];
+        if(!db.pedidos) db.pedidos = [];
+
+        function abrirWhatsAppLink(numero, mensagem = '') {
+            if (!numero) return;
+            const num = String(numero).replace(/\D/g, '');
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // MÁGICA AQUI: Transforma caracteres perigosos (como # e &) em formato seguro para links
+            const mensagemSegura = encodeURIComponent(mensagem.replace(/%0A/g, '\n'));
+            
+            let url = '';
+            if (isMobile) {
+                url = `https://wa.me/${num}${mensagemSegura ? '?text=' + mensagemSegura : ''}`;
+            } else {
+                url = `https://web.whatsapp.com/send?phone=${num}${mensagemSegura ? '&text=' + mensagemSegura : ''}`;
+            }
+            window.open(url, '_blank');
+        }
+
+        
+        // =========================================================
+        // 🚀 INTEGRAÇÃO SUPABASE (NUVEM) - TEMPO REAL
+        // =========================================================
+        // Atenção: Substitua os dois valores abaixo pelas chaves corretas do seu Supabase!
+        const supabaseUrl = 'https://eqoaligyklggwoviqklv.supabase.co'; 
+        const supabaseKey = 'sb_publishable_h4TfzUJpRY89z8hZayB_rw_-G95E0oT';
+        
+        let supabaseClient;
+        let isCloudSyncing = false;
+
+        // Só tenta conectar se você tiver colocado a chave
+        if (!supabaseUrl.includes('COLE_SEU')) {
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+            
+            // 1. Puxar todos os pedidos e lanches da Nuvem ao abrir o site
+            // SAAS ROUTING: Capturar o nome da loja da URL (ex: link.com/?loja=brawlanche)
+        // Apenas carrega os dados locais para a loja única
+        async function carregarDaNuvem() {
+            if (supabaseClient) {
+                try {
+                    const { data: loja } = await supabaseClient.from('sistema_loja').select('*').eq('id', 1).single();
+                    if (loja && loja.dados) {
+                        if (loja.dados.config) db.config = { ...db.config, ...loja.dados.config };
+                        if (loja.dados.categorias) db.categorias = loja.dados.categorias;
+                        if (loja.dados.produtos) db.produtos = loja.dados.produtos;
+                        if (loja.dados.entregadores) db.entregadores = loja.dados.entregadores;
+                        if (loja.dados.cupons) db.cupons = loja.dados.cupons;
+                        localStorage.setItem('sapipa_lanche_v1', JSON.stringify(db));
+                    }
+                } catch(e) { console.log("Usando dados locais:", e); }
+            }
+            atualizarStatusLanchonete();
+            renderizarCategorias();
+            renderizarProdutos();
+            atualizarBadgePedidos();
+        }
+            carregarDaNuvem();
+
+            // 2. MÁGICA: Escutar em tempo real se outro telemóvel/computador fez um pedido
+            supabaseClient.channel('loja-sync')
+              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sistema_loja' }, (payload) => {
+                  if (!isCloudSyncing) { // Se não fomos nós a enviar, atualiza a tela!
+                      db = payload.new.dados;
+                      localStorage.setItem('sapipa_lanche_v1', JSON.stringify(db));
+                      
+                      atualizarBadgePedidos();
+                      const kds = document.getElementById('tab-conteudo-kds');
+                      if(kds && !kds.classList.contains('hidden')) carregarKdsKanban();
+                      const ped = document.getElementById('tab-conteudo-pedidos');
+                      if(ped && !ped.classList.contains('hidden')) carregarListaPedidosAdmin();
+                  }
+              })
+              .subscribe();
+        }
+
+        // 3. Modificamos a função de salvar para enviar os dados para a Nuvem também!
+        function salvarDB() { 
+            // Guarda no PC/Telemóvel local (para ser ultra-rápido)
+            localStorage.setItem('sapipa_lanche_v1', JSON.stringify(db)); 
+            
+            // Dispara para a Nuvem (Supabase) invisivelmente
+            if (supabaseClient) {
+                isCloudSyncing = true;
+                supabaseClient.from('sistema_loja').update({ dados: db }).eq('id', 1)
+                    .then(() => {
+                        // Dá meio segundo para evitar que ele leia a própria mensagem e crie um loop
+                        setTimeout(() => { isCloudSyncing = false; }, 500);
+                    });
+            }
+        }
+        let categoriaAtiva = "Todos";
+        let carrinho = [];
+        let produtoSelecionadoModal = null;
+        let kmCalculado = 0;
+        let valorFreteCalculado = 0;
+        let cupomAplicado = null;
+        let valorDescontoCupom = 0;
+        
+        // --- NOVO: Sistema de Sessão do Admin ---
+        let isLogado = false;
+
+        // --- NOVO: Sistema de Toast Profissional ---
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-green-600 border-green-500 text-white' : 'bg-red-600 border-red-500 text-white';
+            const icon = type === 'success' ? 'fa-check' : 'fa-triangle-exclamation';
+            toast.className = `flex items-center gap-3 ${bg} px-4 py-3 rounded-xl shadow-2xl border transition-all duration-300 translate-x-[120%]`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span class="text-sm font-bold">${msg}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.remove('translate-x-[120%]'), 10);
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-[120%]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.onload = function() {
+            atualizarStatusLanchonete();
+            renderizarCategorias();
+            renderizarProdutos();
+            atualizarCarrinhoFlutuante();
+            atualizarBadgePedidos();
+        };
+
+        function atualizarStatusLanchonete() {
+            const badge = document.getElementById('store-status-badge');
+            if (db.config.aberto) {
+                badge.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-green-500/50 bg-green-950/80 text-green-400 flex items-center gap-1.5 shadow";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Aberto agora`;
+            } else {
+                badge.className = "px-3 py-1.5 rounded-xl text-xs font-bold border border-red-500/50 bg-red-950/80 text-red-400 flex items-center gap-1.5 shadow";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Fechado`;
+            }
+        }
+
+        function renderizarCategorias() {
+            const container = document.getElementById('categorias-container');
+            const selectAdmin = document.getElementById('prod-categoria');
+            
+            let html = `<button onclick="filtrarPorCategoria('Todos')" class="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${categoriaAtiva === 'Todos' ? 'bg-amber-600 text-white shadow-lg border border-amber-400' : 'bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-amber-700'}">Todos</button>`;
+            
+            let selectHtml = '';
+            db.categorias.forEach(cat => {
+                const ativo = categoriaAtiva === cat;
+                html += `<button onclick="filtrarPorCategoria('${cat}')" class="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${ativo ? 'bg-amber-600 text-white shadow-lg border border-amber-400' : 'bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-amber-700'}">${cat}</button>`;
+                selectHtml += `<option value="${cat}">${cat}</option>`;
+            });
+
+            if(container) container.innerHTML = html;
+            if(selectAdmin) selectAdmin.innerHTML = selectHtml;
+        }
+
+        function filtrarPorCategoria(cat) {
+            categoriaAtiva = cat;
+            renderizarCategorias();
+            renderizarProdutos();
+        }
+
+        function renderizarProdutos() {
+            const container = document.getElementById('produtos-container');
+            const busca = document.getElementById('input-busca').value.toLowerCase();
+            
+            const filtrados = db.produtos.filter(p => {
+                const matchCat = categoriaAtiva === 'Todos' || p.categoria === categoriaAtiva;
+                const matchBusca = p.nome.toLowerCase().includes(busca) || p.desc.toLowerCase().includes(busca);
+                return matchCat && matchBusca;
+            });
+
+            if (filtrados.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-zinc-500 text-sm">Nenhum produto encontrado.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtrados.map(p => `
+                <div onclick="abrirModalProduto(${p.id})" class="bg-zinc-900/90 border border-amber-700/30 hover:border-amber-500/80 p-3.5 rounded-2xl shadow-md transition flex gap-4 cursor-pointer items-center group">
+                    <img src="${p.img}" alt="${p.nome}" class="w-24 h-24 object-cover rounded-xl shrink-0 border border-amber-800/40 group-hover:scale-105 transition">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 border border-amber-800/50 px-2 py-0.5 rounded-md">${p.categoria}</span>
+                        <h3 class="font-cinzel font-bold text-white text-sm truncate mt-1 group-hover:text-amber-400 transition">${p.nome}</h3>
+                        <p class="text-xs text-zinc-400 line-clamp-2 mt-0.5">${p.desc}</p>
+                        <p class="font-cinzel font-black text-amber-500 text-sm mt-1.5">R$ ${p.preco.toFixed(2).replace('.', ',')}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filtrarCardapio() { renderizarProdutos(); }
+
+        function abrirModalProduto(id) {
+            produtoSelecionadoModal = db.produtos.find(p => p.id === id);
+            if(!produtoSelecionadoModal) return;
+
+            document.getElementById('modal-prod-img').src = produtoSelecionadoModal.img;
+            document.getElementById('modal-prod-nome').innerText = produtoSelecionadoModal.nome;
+            document.getElementById('modal-prod-desc').innerText = produtoSelecionadoModal.desc;
+            document.getElementById('modal-prod-preco').innerText = `R$ ${produtoSelecionadoModal.preco.toFixed(2).replace('.', ',')}`;
+            document.getElementById('modal-prod-obs').value = '';
+            document.getElementById('modal-prod-qtd').innerText = '1';
+            atualizarTotalModal();
+
+            document.getElementById('modal-produto').classList.remove('hidden');
+        }
+
+        function fecharModalProduto() { document.getElementById('modal-produto').classList.add('hidden'); }
+
+        function alterarQtdModal(val) {
+            let qtd = parseInt(document.getElementById('modal-prod-qtd').innerText) + val;
+            if(qtd < 1) qtd = 1;
+            document.getElementById('modal-prod-qtd').innerText = qtd;
+            atualizarTotalModal();
+        }
+
+        function atualizarTotalModal() {
+            let qtd = parseInt(document.getElementById('modal-prod-qtd').innerText);
+            let total = produtoSelecionadoModal.preco * qtd;
+            document.getElementById('modal-total-btn').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        function adicionarAoCarrinhoDoModal() {
+            let qtd = parseInt(document.getElementById('modal-prod-qtd').innerText);
+            let obs = document.getElementById('modal-prod-obs').value;
+
+            carrinho.push({
+                ...produtoSelecionadoModal,
+                quantidade: qtd,
+                observacao: obs,
+                subtotal: produtoSelecionadoModal.preco * qtd
+            });
+
+            fecharModalProduto();
+            atualizarCarrinhoFlutuante();
+            showToast("Adicionado ao carrinho!");
+        }
+
+        function atualizarCarrinhoFlutuante() {
+            const flutuante = document.getElementById('carrinho-flutuante');
+            const qtdTotal = carrinho.reduce((sum, item) => sum + item.quantidade, 0);
+            const valorTotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+
+            document.getElementById('qtd-carrinho').innerText = qtdTotal;
+            document.getElementById('subtotal-carrinho').innerText = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+
+            if(qtdTotal > 0) {
+                flutuante.classList.remove('hidden');
+            } else {
+                flutuante.classList.add('hidden');
+            }
+        }
+
+        function abrirCarrinhoModal() {
+            const lista = document.getElementById('lista-itens-carrinho');
+            if(carrinho.length === 0) {
+                lista.innerHTML = `<p class="text-center text-zinc-500 py-6 text-sm">O seu carrinho está vazio.</p>`;
+            } else {
+                lista.innerHTML = carrinho.map((item, index) => `
+                    <div class="flex justify-between items-center bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
+                        <div>
+                            <h4 class="font-cinzel font-bold text-sm text-white">${item.quantidade}x ${item.nome}</h4>
+                            ${item.observacao ? `<p class="text-xs text-amber-400">Obs: ${item.observacao}</p>` : ''}
+                            <p class="text-xs font-bold text-zinc-300 mt-1">R$ ${item.subtotal.toFixed(2).replace('.', ',')}</p>
+                        </div>
+                        <button onclick="removerItemCarrinho(${index})" class="text-red-400 hover:text-red-300 p-2"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+            atualizarResumoCarrinhoModal();
+            atualizarOpcoesPagamento();
+            document.getElementById('modal-carrinho').classList.remove('hidden');
+        }
+
+        function fecharCarrinhoModal() { document.getElementById('modal-carrinho').classList.add('hidden'); }
+
+        function removerItemCarrinho(index) {
+            carrinho.splice(index, 1);
+            atualizarCarrinhoFlutuante();
+            abrirCarrinhoModal();
+        }
+
+        
+        function atualizarOpcoesPagamento() {
+            const formaPagamento = document.querySelector('input[name="pagamento"]:checked').value;
+            const divPix = document.getElementById('pagamento-pix-info');
+            const divEntrega = document.getElementById('pagamento-entrega-info');
+            const divTroco = document.getElementById('div-troco');
+            
+            if (formaPagamento === 'PIX') {
+                divPix.classList.remove('hidden');
+                divEntrega.classList.add('hidden');
+                document.getElementById('chave-pix-copiar').value = db.config.chavePix || 'Chave não configurada';
+            } else {
+                divPix.classList.add('hidden');
+                divEntrega.classList.remove('hidden');
+                
+                const metodoEntrega = document.querySelector('input[name="metodo_entrega"]:checked').value;
+                if (metodoEntrega === 'Dinheiro') {
+                    divTroco.classList.remove('hidden');
+                } else {
+                    divTroco.classList.add('hidden');
+                }
+            }
+        }
+
+        function copiarChavePix() {
+            const input = document.getElementById('chave-pix-copiar');
+            input.select();
+            input.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(input.value);
+            showToast("Chave PIX copiada!", "success");
+        }
+
+        async function calcularFrete() {
+            const enderecoInput = document.getElementById('cliente-endereco').value.trim();
+            if(!enderecoInput) {
+                showToast("Digite seu endereço completo com bairro para calcular a entrega.", "error");
+                return;
+            }
+
+            const btnCalc = document.querySelector('button[onclick="calcularFrete()"]');
+            btnCalc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Satélite...';
+            btnCalc.disabled = true;
+
+            try {
+                // Endereço exato da loja configurado pelo dono
+                const enderecoBase = db.config.enderecoBase || "Alameda Saturnino, 7 - Centro, Manaus - AM, 69020-155";
+                
+                // 1. Obter Coordenadas da Loja (OpenStreetMap GPS)
+                let resBase = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enderecoBase)}`);
+                let dataBase = await resBase.json();
+                
+                // Se falhar a busca exata, usa uma genérica do Centro de Manaus como salva-vidas
+                if(dataBase.length === 0) {
+                     resBase = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent("Centro, Manaus, AM")}`);
+                     dataBase = await resBase.json();
+                }
+                const latBase = dataBase[0].lat;
+                const lonBase = dataBase[0].lon;
+
+                // 2. Obter Coordenadas do Cliente (Procura em Manaus)
+                const enderecoPesquisa = enderecoInput + ", Manaus, Amazonas, Brasil";
+                const resCliente = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enderecoPesquisa)}`);
+                const dataCliente = await resCliente.json();
+                
+                if(dataCliente.length === 0) {
+                    throw new Error("GPS não encontrou. Tente digitar [Rua, Número e Bairro].");
+                }
+                const latCliente = dataCliente[0].lat;
+                const lonCliente = dataCliente[0].lon;
+
+                // 3. Calcular Rota Real de Carro/Moto (OSRM Routing)
+                const resRota = await fetch(`https://router.project-osrm.org/route/v1/driving/${lonBase},${latBase};${lonCliente},${latCliente}?overview=false`);
+                const dataRota = await resRota.json();
+
+                if(dataRota.code !== "Ok" || !dataRota.routes || dataRota.routes.length === 0) {
+                    throw new Error("Não foi possível traçar rota de rua até o local.");
+                }
+
+                // Distância vem em metros, convertemos para KM com 1 casa decimal
+                kmCalculado = dataRota.routes[0].distance / 1000;
+                kmCalculado = Math.round(kmCalculado * 10) / 10;
+                
+                // Entrega grátis até 1.5km
+                let limiteGratis = db.config.kmGratis !== undefined ? db.config.kmGratis : 1.5;
+                if(kmCalculado <= limiteGratis) {
+                    valorFreteCalculado = 0;
+                } else {
+                    valorFreteCalculado = kmCalculado * db.config.taxaKm;
+                }
+
+                atualizarResumoCarrinhoModal();
+                showToast(`📍 Rota de ${kmCalculado.toFixed(1)} km traçada por Satélite!`, "success");
+
+            } catch(erro) {
+                showToast(erro.message || "Erro de conexão com o GPS.", "error");
+                kmCalculado = 0;
+                valorFreteCalculado = 0;
+                atualizarResumoCarrinhoModal();
+            } finally {
+                btnCalc.innerText = "Calcular KM";
+                btnCalc.disabled = false;
+            }
+        }
+
+        function aplicarCupom() {
+            const codigo = document.getElementById('input-codigo-cupom').value.trim().toUpperCase();
+            const cupom = db.cupons.find(c => c.codigo === codigo);
+            const msgEl = document.getElementById('status-cupom-msg');
+
+            if(!cupom) {
+                showToast("Cupom inválido!", "error");
+                cupomAplicado = null;
+                valorDescontoCupom = 0;
+                msgEl.classList.add('hidden');
+                atualizarResumoCarrinhoModal();
+                return;
+            }
+
+            cupomAplicado = cupom;
+            const subtotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+            
+            if(cupom.tipo === 'porcentagem') {
+                valorDescontoCupom = (subtotal * cupom.valor) / 100;
+            } else {
+                valorDescontoCupom = cupom.valor;
+            }
+
+            msgEl.innerText = `Cupom ${cupom.codigo} aplicado!`;
+            msgEl.classList.remove('hidden');
+            showToast("Cupom aplicado com sucesso!");
+            atualizarResumoCarrinhoModal();
+        }
+
+        function atualizarResumoCarrinhoModal() {
+            const subtotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+            let subtotalComDesconto = subtotal - valorDescontoCupom;
+            if(subtotalComDesconto < 0) subtotalComDesconto = 0;
+            
+            const totalGeral = subtotalComDesconto + valorFreteCalculado;
+            const cashbackGerado = (subtotalComDesconto * (db.config.cashbackPerc || 5)) / 100;
+
+            document.getElementById('resumo-subtotal').innerText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+            
+            const linhaDesc = document.getElementById('linha-desconto-resumo');
+            if(valorDescontoCupom > 0) {
+                linhaDesc.classList.remove('hidden');
+                document.getElementById('resumo-desconto').innerText = `- R$ ${valorDescontoCupom.toFixed(2).replace('.', ',')}`;
+            } else {
+                linhaDesc.classList.add('hidden');
+            }
+
+            document.getElementById('resumo-km').innerText = kmCalculado.toFixed(1);
+            const badgeGratis = document.getElementById('badge-frete-gratis-info');
+            if (badgeGratis) {
+                const lim = db.config.kmGratis !== undefined ? db.config.kmGratis : 1.5;
+                badgeGratis.innerText = lim > 0 ? `• Grátis até ${lim}km` : '';
+            }
+            document.getElementById('resumo-frete').innerText = `R$ ${valorFreteCalculado.toFixed(2).replace('.', ',')}`;
+            document.getElementById('resumo-total').innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+            
+            document.getElementById('cashback-ganho-msg').innerText = `🎁 Você ganhará R$ ${cashbackGerado.toFixed(2)} de Cashback neste pedido!`;
+        }
+
+        function enviarPedidoWhatsApp() {
+            if(!db.config.aberto) {
+                showToast("A lanchonete está fechada no momento!", "error");
+                return;
+            }
+            if(carrinho.length === 0) {
+                showToast("Seu carrinho está vazio!", "error");
+                return;
+            }
+            const nome = document.getElementById('cliente-nome').value.trim();
+            const whatsapp = document.getElementById('cliente-whatsapp').value.trim();
+            const endereco = document.getElementById('cliente-endereco').value.trim();
+            const obsGeral = document.getElementById('cliente-obs-geral').value.trim();
+            
+            // Dados Pagamento
+            const tipoPagamento = document.querySelector('input[name="pagamento"]:checked').value;
+            let detalhesPagamento = tipoPagamento;
+            let trocoCliente = "";
+            
+            if (tipoPagamento === 'Entrega') {
+                const metodo = document.querySelector('input[name="metodo_entrega"]:checked').value;
+                detalhesPagamento = `Pagar na Entrega (${metodo})`;
+                if (metodo === 'Dinheiro') {
+                    trocoCliente = document.getElementById('cliente-troco').value;
+                    if(!trocoCliente) {
+                        showToast("Informe para quanto precisa de troco.", "error");
+                        return;
+                    }
+                }
+            }
+
+            if(!nome || !whatsapp || !endereco) {
+                showToast("Por favor, preencha o seu Nome, WhatsApp e Endereço.", "error");
+                return;
+            }
+
+            const subtotal = carrinho.reduce((sum, item) => sum + item.subtotal, 0);
+            let subtotalComDesconto = subtotal - valorDescontoCupom;
+            if(subtotalComDesconto < 0) subtotalComDesconto = 0;
+            const totalGeral = subtotalComDesconto + valorFreteCalculado;
+            const cashbackGerado = (subtotalComDesconto * (db.config.cashbackPerc || 5)) / 100;
+
+            const novoPedido = {
+                id: Date.now().toString().slice(-4),
+                timestamp: Date.now(),
+                data: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                cliente: nome,
+                whatsapp: whatsapp,
+                observacaoGeral: obsGeral,
+                pagamento: detalhesPagamento,
+                trocoPara: trocoCliente,
+                itens: [...carrinho],
+                endereco: endereco,
+                km: kmCalculado.toFixed(1),
+                frete: valorFreteCalculado,
+                desconto: valorDescontoCupom,
+                total: totalGeral,
+                cashback: cashbackGerado,
+                status: 'Pendente'
+            };
+
+            // Enviar diretamente para a caixa forte do Supabase (sem guardar no local do cliente)
+            if (supabaseClient) {
+                supabaseClient.from('pedidos_seguros').insert([{ dados: novoPedido }]).then(() => {
+                    console.log("Pedido seguro gravado.");
+                });
+            }
+
+            let msg = `*NOVO PEDIDO - SAPIPA LANCHE* ( #${novoPedido.id} )%0A%0A`;
+            msg += `👤 *Cliente:* ${nome}%0A`;
+            msg += `📞 *WhatsApp:* ${whatsapp}%0A%0A`;
+            msg += `*Itens do Pedido:*%0A`;
+            carrinho.forEach(item => {
+                msg += `• ${item.quantidade}x ${item.nome} (R$ ${item.subtotal.toFixed(2)})%0A`;
+                if(item.observacao) msg += `  _Obs: ${item.observacao}_%0A`;
+            });
+
+            msg += `%0A📍 *Endereço:* ${endereco}`;
+            msg += `%0A🛣️ *Distância:* ${kmCalculado.toFixed(1)} km`;
+            msg += `%0A📦 *Taxa Entrega:* R$ ${valorFreteCalculado.toFixed(2)}`;
+            if(valorDescontoCupom > 0) msg += `%0A🎟️ *Desconto Cupom:* - R$ ${valorDescontoCupom.toFixed(2)}`;
+            if(obsGeral) msg += `%0A💬 *Observações:* ${obsGeral}`;
+            msg += `%0A%0A*TOTAL GERAL: R$ ${totalGeral.toFixed(2)}*%0A`;
+            
+            msg += `%0A💳 *Pagamento:* ${detalhesPagamento}`;
+            if(trocoCliente) msg += `%0A💵 *Troco para:* R$ ${parseFloat(trocoCliente).toFixed(2)}`;
+            if(tipoPagamento === 'PIX') msg += `%0A📲 _O comprovativo do PIX será enviado a seguir._`;
+            
+            msg += `%0A%0A🎁 *Cashback Gerado:* R$ ${cashbackGerado.toFixed(2)}%0A%0A Aguardo confirmação!`;
+
+            carrinho = [];
+            cupomAplicado = null;
+            valorDescontoCupom = 0;
+            atualizarCarrinhoFlutuante();
+            fecharCarrinhoModal();
+
+            abrirWhatsAppLink(db.config.whatsapp, msg);
+        }
+
+        // --- ATUALIZADO: Lógica de Login c/ Sessão Mantida ---
+        function abrirAdminLogin() { 
+            if(isLogado) {
+                abrirAdminPainel();
+            } else {
+                document.getElementById('modal-admin-login').classList.remove('hidden'); 
+            }
+        }
+        
+        function fecharAdminLogin() { document.getElementById('modal-admin-login').classList.add('hidden'); }
+        
+        function fazerLoginAdmin() {
+            const senha = document.getElementById('senha-admin').value;
+            if(senha === 'admin123') {
+                isLogado = true;
+                fecharAdminLogin();
+                document.getElementById('senha-admin').value = '';
+                abrirAdminPainel();
+                showToast("Bem-vindo ao painel!", "success");
+            } else {
+                showToast("Senha incorreta!", "error");
+            }
+        }
+        
+        function logoutAdmin() {
+            isLogado = false;
+            fecharAdminPainel();
+            showToast("Você saiu do painel administrativo.", "success");
+        }
+
+        function abrirAdminPainel() {
+            carregarConfiguracoesAdmin();
+            carregarKdsKanban();
+            carregarListaPedidosAdmin();
+            if(typeof carregarListaFinalizadosAdmin === 'function') carregarListaFinalizadosAdmin();
+            carregarListaProdutosAdmin();
+            carregarListaCategoriasAdmin();
+            carregarListaEntregadoresAdmin();
+            carregarListaCuponsAdmin();
+            document.getElementById('modal-admin-painel').classList.remove('hidden');
+            mudarAbaAdmin('dashboard'); // Abrir focado no Dashboard
+        }
+
+        function fecharAdminPainel() { document.getElementById('modal-admin-painel').classList.add('hidden'); }
+        function toggleMobileMenu() {
+            const menu = document.getElementById('admin-sidebar-menu');
+            const footer = document.getElementById('admin-sidebar-footer');
+            const icon = document.getElementById('mobile-menu-icon');
+            
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                menu.classList.add('flex');
+                footer.classList.remove('hidden');
+                footer.classList.add('block');
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                menu.classList.add('hidden');
+                menu.classList.remove('flex');
+                footer.classList.add('hidden');
+                footer.classList.remove('block');
+                icon.classList.add('fa-bars');
+                icon.classList.remove('fa-chevron-up');
+            }
+        }
+
+
+        
+        const iconesTabs = {
+            'dashboard': '<i class="fa-solid fa-chart-pie text-amber-500"></i>',
+            'pedidos': '<i class="fa-solid fa-receipt text-amber-500"></i>',
+            'finalizados': '<i class="fa-solid fa-check-double text-emerald-500"></i>',
+            'financeiro': '<i class="fa-solid fa-chart-line text-emerald-500"></i>',
+            'kds': '<i class="fa-solid fa-fire-burner text-orange-500"></i>',
+            'produtos': '<i class="fa-solid fa-burger text-amber-500"></i>',
+            'categorias': '<i class="fa-solid fa-layer-group text-amber-500"></i>',
+            'entregadores': '<i class="fa-solid fa-motorcycle text-amber-500"></i>',
+            'cupons': '<i class="fa-solid fa-ticket text-amber-500"></i>',
+            'status': '<i class="fa-solid fa-gear text-amber-500"></i>'
+        };
+
+        const titulosTabs = {
+            'dashboard': 'Dashboard Geral',
+            'pedidos': 'Gestão de Pedidos',
+            'finalizados': 'Histórico de Finalizados',
+            'financeiro': 'Controle Financeiro',
+            'kds': 'Monitor KDS (Cozinha)',
+            'produtos': 'Catálogo de Produtos',
+            'categorias': 'Categorias do Menu',
+            'entregadores': 'Logística e Entregas',
+            'cupons': 'Cupons e Promoções',
+            'status': 'Configurações do Sistema'
+        };
+
+        let vendasChartInstance = null;
+
+        function mudarAbaAdmin(aba) {
+            const abasLista = ['dashboard', 'status', 'kds', 'pedidos', 'finalizados', 'financeiro', 'produtos', 'categorias', 'entregadores', 'cupons'];
+            
+            abasLista.forEach(a => {
+                const conteudo = document.getElementById(`tab-conteudo-${a}`);
+                if (conteudo) conteudo.classList.add('hidden');
+                
+                const btn = document.getElementById(`tab-btn-${a}`);
+                if (btn) {
+                    btn.className = "nav-btn w-auto md:w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition flex items-center justify-between shrink-0";
+                    if (a !== 'pedidos') btn.className = btn.className.replace('justify-between', 'gap-3');
+                }
+            });
+
+            const activeContent = document.getElementById(`tab-conteudo-${aba}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+
+            const activeBtn = document.getElementById(`tab-btn-${aba}`);
+            if (activeBtn) {
+                let extraClass = (aba === 'pedidos') ? 'justify-between' : 'gap-3';
+                activeBtn.className = `nav-btn w-auto md:w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-amber-400 bg-amber-900/20 border border-amber-700/50 shadow-md transition flex items-center shrink-0 ${extraClass}`;
+            }
+            
+            // Fechar menu no telemóvel ao clicar numa aba
+            if (window.innerWidth < 768) {
+                const menu = document.getElementById('admin-sidebar-menu');
+                const footer = document.getElementById('admin-sidebar-footer');
+                const icon = document.getElementById('mobile-menu-icon');
+                if (menu && !menu.classList.contains('hidden')) {
+                    menu.classList.add('hidden');
+                    menu.classList.remove('flex');
+                    footer.classList.add('hidden');
+                    footer.classList.remove('block');
+                    if(icon) {
+                        icon.classList.add('fa-bars');
+                        icon.classList.remove('fa-chevron-up');
+                    }
+                }
+            }
+            
+            const titleEl = document.getElementById('admin-page-title');
+            if(titleEl) {
+                titleEl.innerHTML = `${iconesTabs[aba] || ''} <span class="tracking-wide">${titulosTabs[aba] || aba}</span>`;
+            }
+
+            if(aba === 'kds') carregarKdsKanban();
+            if(aba === 'pedidos') carregarListaPedidosAdmin();
+            if(aba === 'finalizados') carregarListaFinalizadosAdmin();
+            if(aba === 'dashboard') setTimeout(renderizarDashboard, 100);
+            if(aba === 'financeiro') setTimeout(renderizarFinanceiro, 100);
+        }
+
+        function renderizarDashboard() {
+            let receita = 0;
+            let qtdPedidos = db.pedidos.length;
+            let itensVendidos = 0;
+            let prodCount = {};
+            let labelsChart = [];
+            let dataChart = [];
+
+            // Pega ultimos 15 e inverte ordem cronológica (esq p/ dir)
+            let ultimosPedidos = db.pedidos.slice(0, 15).reverse();
+            ultimosPedidos.forEach((p) => {
+                labelsChart.push(`#${p.id}`);
+                dataChart.push(p.total);
+            });
+
+            db.pedidos.forEach(p => {
+                receita += p.total;
+                p.itens.forEach(item => {
+                    itensVendidos += item.quantidade;
+                    if(!prodCount[item.nome]) prodCount[item.nome] = 0;
+                    prodCount[item.nome] += item.quantidade;
+                });
+            });
+
+            let ticketMedio = qtdPedidos > 0 ? (receita / qtdPedidos) : 0;
+
+            document.getElementById('dash-pedidos-hoje').innerText = qtdPedidos;
+            document.getElementById('dash-receita-hoje').innerText = `R$ ${receita.toFixed(2).replace('.', ',')}`;
+            document.getElementById('dash-ticket-medio').innerText = `R$ ${ticketMedio.toFixed(2).replace('.', ',')}`;
+            document.getElementById('dash-itens-vendidos').innerText = itensVendidos;
+
+            let topProdArray = Object.keys(prodCount).map(k => ({nome: k, qtd: prodCount[k]}));
+            topProdArray.sort((a,b) => b.qtd - a.qtd);
+            let topHtml = topProdArray.slice(0, 6).map((tp, index) => `
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-amber-900/50 transition duration-300">
+                    <span class="text-xs text-zinc-300 font-bold truncate pr-2"><span class="text-zinc-600 mr-2 w-4 inline-block text-right">${index+1}.</span> ${tp.nome}</span>
+                    <span class="text-[10px] bg-gradient-to-r from-amber-600 to-orange-500 text-white px-2.5 py-1 rounded-lg font-bold shadow-md shrink-0">${tp.qtd}x</span>
+                </div>
+            `).join('');
+            if(topProdArray.length === 0) topHtml = `<div class="h-full w-full flex items-center justify-center text-xs text-zinc-600 py-10">Nenhuma venda registrada.</div>`;
+            document.getElementById('dash-top-produtos').innerHTML = topHtml;
+
+            const canvas = document.getElementById('vendasChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            if(vendasChartInstance) {
+                vendasChartInstance.destroy();
+            }
+            
+            if(typeof Chart !== 'undefined') {
+                Chart.defaults.color = '#71717a';
+                Chart.defaults.font.family = "'Poppins', sans-serif";
+                
+                // Gradiente na linha
+                let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
+                gradient.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+                vendasChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labelsChart.length > 0 ? labelsChart : ['-'],
+                        datasets: [{
+                            label: 'Valor (R$)',
+                            data: dataChart.length > 0 ? dataChart : [0],
+                            borderColor: '#f59e0b',
+                            backgroundColor: gradient,
+                            borderWidth: 3,
+                            tension: 0.4, // Suaviza a curva
+                            fill: true,
+                            pointBackgroundColor: '#18181b',
+                            pointBorderColor: '#f59e0b',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 7,
+                            pointHoverBackgroundColor: '#f59e0b'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(9, 9, 11, 0.9)',
+                                titleFont: { size: 13, family: "'Poppins', sans-serif" },
+                                bodyFont: { size: 14, weight: 'bold', family: "'Poppins', sans-serif" },
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'R$ ' + context.parsed.y.toFixed(2).replace('.', ',');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#27272a', borderDash: [5, 5] }, 
+                                border: { display: false },
+                                ticks: {
+                                    callback: function(value) { return 'R$ ' + value; }
+                                }
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                border: { display: false } 
+                            }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            }
+        }
+
+
+        
+        let financeiroChartInstance = null;
+
+        function initFiltrosFinanceiro() {
+            const inputMes = document.getElementById('input-filtro-mes');
+            
+            // Força configuração inicial caso não tenha sido feita
+            const now = new Date();
+            let year = now.getFullYear();
+            if(year !== 2026 && year !== 2027) year = 2026; // Limite de anos
+            const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+            
+            // Tenta achar a option do mês atual (Ex: 2026-10)
+            const expectedValue = `${year}-${monthStr}`;
+            let hasOption = Array.from(inputMes.options).some(opt => opt.value === expectedValue);
+            
+            if(hasOption && !inputMes.dataset.initialized) {
+                inputMes.value = expectedValue;
+                inputMes.dataset.initialized = 'true';
+                atualizarFiltroDias();
+            }
+        }
+
+        function atualizarFiltroDias() {
+            const inputMes = document.getElementById('input-filtro-mes');
+            const inputDia = document.getElementById('input-filtro-dia');
+            const parts = inputMes.value.split('-');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            
+            // Guarda o dia selecionado atualmente para tentar manter
+            const diaAnterior = inputDia.value;
+            
+            // Quantos dias tem o mês selecionado?
+            const daysInMonth = new Date(year, month, 0).getDate();
+            
+            let htmlDias = `<option value="todos">Mês Inteiro</option>`;
+            for(let i = 1; i <= daysInMonth; i++) {
+                const diaStr = String(i).padStart(2, '0');
+                htmlDias += `<option value="${diaStr}">Dia ${diaStr}</option>`;
+            }
+            inputDia.innerHTML = htmlDias;
+            
+            // Restaura o dia se ele existir no novo mês
+            if(diaAnterior !== 'todos' && parseInt(diaAnterior) <= daysInMonth) {
+                inputDia.value = diaAnterior;
+            } else {
+                inputDia.value = 'todos';
+            }
+        }
+
+        function renderizarFinanceiro() {
+            initFiltrosFinanceiro();
+            
+            const inputMes = document.getElementById('input-filtro-mes');
+            const inputDia = document.getElementById('input-filtro-dia');
+            
+            const parts = inputMes.value.split('-');
+            const targetYear = parseInt(parts[0]);
+            const targetMonth = parseInt(parts[1]) - 1; // JS months are 0-indexed
+            const targetDay = inputDia.value; // "todos" ou "01", "02", etc
+
+            // Atualizar Label
+            const nomeMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            let labelText = `(${nomeMeses[targetMonth]} de ${targetYear})`;
+            if (targetDay !== 'todos') {
+                labelText = `(Dia ${targetDay} de ${nomeMeses[targetMonth]} de ${targetYear})`;
+            }
+            document.getElementById('fin-mes-label').innerText = labelText;
+
+            let receitaTotal = 0;
+            let qtdPedidosTotal = 0;
+            let itensVendidosTotal = 0;
+            
+            const faturamentoGrafico = {};
+            
+            db.pedidos.forEach(p => {
+                // Apenas pedidos finalizados compõem a receita garantida
+                if (p.status !== 'Finalizado') return; 
+
+                const pDate = p.timestamp ? new Date(p.timestamp) : new Date();
+                
+                // Checar se o ano e o mês batem
+                if (pDate.getMonth() === targetMonth && pDate.getFullYear() === targetYear) {
+                    
+                    const diaDoPedido = String(pDate.getDate()).padStart(2, '0');
+                    
+                    // Se o filtro de dia estiver ativo, pular os que não batem
+                    if (targetDay !== 'todos' && targetDay !== diaDoPedido) return;
+
+                    receitaTotal += p.total;
+                    qtdPedidosTotal++;
+                    p.itens.forEach(item => itensVendidosTotal += item.quantidade);
+                    
+                    // Para o gráfico: 
+                    // - Se estiver vendo o "Mês Inteiro", agrupar por Dias
+                    // - Se estiver vendo um "Dia Específico", agrupar por Horas
+                    if (targetDay === 'todos') {
+                        const diaStr = pDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                        if (!faturamentoGrafico[diaStr]) faturamentoGrafico[diaStr] = 0;
+                        faturamentoGrafico[diaStr] += p.total;
+                    } else {
+                        const horaStr = pDate.toLocaleTimeString('pt-BR', {hour: '2-digit'}) + 'h';
+                        if (!faturamentoGrafico[horaStr]) faturamentoGrafico[horaStr] = 0;
+                        faturamentoGrafico[horaStr] += p.total;
+                    }
+                }
+            });
+
+            let ticketMedioMes = qtdPedidosTotal > 0 ? (receitaTotal / qtdPedidosTotal) : 0;
+
+            document.getElementById('fin-pedidos-mes').innerText = qtdPedidosTotal;
+            document.getElementById('fin-receita-mes').innerText = `R$ ${receitaTotal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('fin-ticket-medio').innerText = `R$ ${ticketMedioMes.toFixed(2).replace('.', ',')}`;
+            document.getElementById('fin-itens-vendidos').innerText = itensVendidosTotal;
+
+            let labelsChart = [];
+            let dataChart = [];
+
+            if (targetDay === 'todos') {
+                document.getElementById('grafico-titulo-fin').innerText = "Faturamento Diário";
+                document.getElementById('grafico-desc-fin').innerText = "Desempenho diário de vendas do mês selecionado";
+                
+                const sortedKeys = Object.keys(faturamentoGrafico).sort((a,b) => {
+                    const [dA, mA] = a.split('/');
+                    const [dB, mB] = b.split('/');
+                    return (parseInt(mA)*100 + parseInt(dA)) - (parseInt(mB)*100 + parseInt(dB));
+                });
+                labelsChart = sortedKeys;
+                dataChart = sortedKeys.map(k => faturamentoGrafico[k]);
+            } else {
+                document.getElementById('grafico-titulo-fin').innerText = "Faturamento por Hora";
+                document.getElementById('grafico-desc-fin').innerText = `Desempenho de vendas no dia ${targetDay}/${String(targetMonth+1).padStart(2,'0')}`;
+                
+                const sortedKeys = Object.keys(faturamentoGrafico).sort((a,b) => {
+                    return parseInt(a) - parseInt(b);
+                });
+                labelsChart = sortedKeys;
+                dataChart = sortedKeys.map(k => faturamentoGrafico[k]);
+            }
+
+            const canvas = document.getElementById('financeiroChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            if(financeiroChartInstance) financeiroChartInstance.destroy();
+            
+            if(typeof Chart !== 'undefined') {
+                Chart.defaults.color = '#71717a';
+                Chart.defaults.font.family = "'Poppins', sans-serif";
+                
+                let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 0.6)');
+                gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+                financeiroChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsChart.length > 0 ? labelsChart : ['Sem Vendas'],
+                        datasets: [{
+                            label: 'Faturamento (R$)',
+                            data: dataChart.length > 0 ? dataChart : [0],
+                            backgroundColor: gradient,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderRadius: 4,
+                            hoverBackgroundColor: '#10b981'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(9, 9, 11, 0.9)',
+                                titleFont: { size: 13, family: "'Poppins', sans-serif" },
+                                bodyFont: { size: 14, weight: 'bold', family: "'Poppins', sans-serif" },
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'R$ ' + context.parsed.y.toFixed(2).replace('.', ',');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#27272a', borderDash: [5, 5] }, 
+                                border: { display: false },
+                                ticks: { callback: function(value) { return 'R$ ' + value; } }
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                border: { display: false } 
+                            }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            }
+        }
+
+        function carregarConfiguracoesAdmin() {
+            const btnAbertura = document.getElementById('btn-toggle-abertura');
+            if(db.config.aberto) {
+                btnAbertura.innerText = "Aberto (Mudar para Fechado)";
+                btnAbertura.className = "bg-green-950/80 text-green-400 border border-green-500/50 px-4 py-2 rounded-xl font-bold text-xs transition shadow";
+            } else {
+                btnAbertura.innerText = "Fechado (Mudar para Aberto)";
+                btnAbertura.className = "bg-red-950/80 text-red-400 border border-red-500/50 px-4 py-2 rounded-xl font-bold text-xs transition shadow";
+            }
+            document.getElementById('config-whatsapp').value = db.config.whatsapp;
+            document.getElementById('config-whatsapp-entregador').value = db.config.whatsappEntregador || "559299072636";
+            if(document.getElementById('config-taxa-km')) document.getElementById('config-taxa-km').value = db.config.taxaKm;
+            if(document.getElementById('config-km-gratis')) document.getElementById('config-km-gratis').value = db.config.kmGratis !== undefined ? db.config.kmGratis : 1.5;
+            document.getElementById('config-endereco-base').value = db.config.enderecoBase;
+            document.getElementById('config-chave-pix').value = db.config.chavePix || '';
+            document.getElementById('config-cashback-perc').value = db.config.cashbackPerc || 5.0;
+        }
+
+        function alternarAbertura() {
+            db.config.aberto = !db.config.aberto;
+            salvarDB();
+            carregarConfiguracoesAdmin();
+            atualizarStatusLanchonete();
+        }
+
+        function salvarConfiguracoes() {
+            db.config.whatsapp = document.getElementById('config-whatsapp').value;
+            db.config.whatsappEntregador = document.getElementById('config-whatsapp-entregador').value;
+            db.config.taxaKm = parseFloat(document.getElementById('config-taxa-km').value) || 2.0;
+            if(document.getElementById('config-km-gratis')) { const kmg = parseFloat(document.getElementById('config-km-gratis').value); db.config.kmGratis = isNaN(kmg) ? 1.5 : kmg; }
+            db.config.enderecoBase = document.getElementById('config-endereco-base').value;
+            db.config.chavePix = document.getElementById('config-chave-pix').value;
+            salvarDB();
+            showToast("Configurações salvas com sucesso!");
+        }
+
+        function salvarCashbackConfig() {
+            db.config.cashbackPerc = parseFloat(document.getElementById('config-cashback-perc').value) || 5.0;
+            salvarDB();
+            showToast("Cashback atualizado com sucesso!");
+        }
+
+        function atualizarBadgePedidos() {
+            const badge = document.getElementById('badge-qtd-pedidos');
+            if(badge) {
+                const ativos = db.pedidos.filter(p => p.status !== 'Finalizado').length;
+                badge.innerText = ativos;
+                if(ativos > 0) {
+                    badge.classList.remove('bg-zinc-700', 'text-zinc-400');
+                    badge.classList.add('bg-amber-600', 'text-white');
+                } else {
+                    badge.classList.add('bg-zinc-800', 'text-zinc-500');
+                    badge.classList.remove('bg-amber-600', 'text-white');
+                }
+            }
+        }
+
+        // KDS - Display para Cozinha
+        function carregarKdsKanban() {
+            const container = document.getElementById('kds-kanban-container');
+            const statusList = ['Pendente', 'Em Preparo', 'Pronto para Entrega'];
+            const coresStatus = {
+                'Pendente': 'border-amber-500 bg-amber-950/30',
+                'Em Preparo': 'border-blue-500 bg-blue-950/30',
+                'Pronto para Entrega': 'border-green-500 bg-green-950/30'
+            };
+
+            container.innerHTML = statusList.map(status => {
+                let pedidosFiltrados = db.pedidos.filter(p => p.status === status);
+                
+                // Ordenação FIFO para Pendentes/Em Preparo, e LIFO para Prontos
+                if (status !== 'Pronto para Entrega') {
+                    pedidosFiltrados.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                } else {
+                    pedidosFiltrados.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                }
+
+                return `
+                    <div class="bg-zinc-950 border-2 ${coresStatus[status]} rounded-2xl p-4 flex flex-col h-[65vh]">
+                        <h5 class="font-cinzel font-bold text-white text-sm mb-3 pb-2 border-b border-zinc-800 flex justify-between">
+                            <span>${status}</span>
+                            <span class="bg-zinc-800 px-2 py-0.5 rounded-full text-xs">${pedidosFiltrados.length}</span>
+                        </h5>
+                        <div class="overflow-y-auto flex-1 space-y-3 pr-1 scrollbar-none">
+                            ${pedidosFiltrados.length === 0 ? `<p class="text-xs text-zinc-600 text-center py-8">Nenhum pedido</p>` : ''}
+                            ${pedidosFiltrados.map(pedido => {
+                                const realIndex = db.pedidos.findIndex(p => p.id === pedido.id);
+                                return `
+                                    <div class="bg-zinc-900/80 border border-zinc-800/80 rounded-xl p-3 space-y-2 relative overflow-hidden">
+                                        <div class="flex justify-between items-center text-xs relative z-10">
+                                            <span class="font-bold text-amber-400">#${pedido.id} • ${pedido.cliente}</span>
+                                            <div class="flex items-center gap-1.5">
+                                                ${getTempoEsperaHtml(pedido.timestamp, status)}
+                                                <span class="text-zinc-400">${pedido.data}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-zinc-200 space-y-0.5 relative z-10">
+                                            ${pedido.itens.map(i => `<p class="font-bold">• ${i.quantidade}x ${i.nome} ${i.observacao ? `<span class="text-amber-500/80 font-normal">(Obs: ${i.observacao})</span>` : ''}</p>`).join('')}
+                                        </div>
+                                        ${pedido.observacaoGeral ? `<p class="text-[11px] text-amber-300 relative z-10 bg-amber-950/30 p-1.5 rounded-lg border border-amber-900/30 mt-1">Obs Geral: ${pedido.observacaoGeral}</p>` : ''}
+                                        <div class="flex gap-1 pt-2 border-t border-zinc-800/80 relative z-10">
+                                            ${status === 'Pendente' ? `<button onclick="mudarStatusPedido(${realIndex}, 'Em Preparo')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] py-2 rounded-lg transition shadow-md">Iniciar Preparo</button>` : ''}
+                                            ${status === 'Em Preparo' ? `<button onclick="mudarStatusPedido(${realIndex}, 'Pronto para Entrega')" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold text-[11px] py-2 rounded-lg transition shadow-md">Marcar Pronto</button>` : ''}
+                                            ${status === 'Pronto para Entrega' ? `<span class="w-full text-center text-xs font-bold text-green-400 py-1"><i class="fa-solid fa-check"></i> Finalizado</span>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function carregarListaPedidosAdmin() {
+            const container = document.getElementById('admin-lista-pedidos');
+            atualizarBadgePedidos();
+
+            const ativos = db.pedidos.filter(p => p.status !== 'Finalizado').sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+            if(ativos.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-zinc-500 text-sm bg-zinc-950 rounded-2xl border border-zinc-800">Nenhum pedido em andamento.</div>`;
+                return;
+            }
+
+            container.innerHTML = ativos.map((pedido) => gerarHtmlPedido(pedido)).join('');
+        }
+
+        function carregarListaFinalizadosAdmin() {
+            const container = document.getElementById('admin-lista-finalizados');
+            if(!container) return;
+
+            const finalizados = db.pedidos.filter(p => p.status === 'Finalizado').sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if(finalizados.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-zinc-500 text-sm bg-zinc-950 rounded-2xl border border-zinc-800">Nenhum pedido finalizado ainda.</div>`;
+                return;
+            }
+
+            const grupos = {};
+            finalizados.forEach(p => {
+                let dataStr = 'Data Desconhecida';
+                if (p.timestamp) {
+                    dataStr = new Date(p.timestamp).toLocaleDateString('pt-BR');
+                }
+                if (!grupos[dataStr]) grupos[dataStr] = [];
+                grupos[dataStr].push(p);
+            });
+
+            let html = '';
+            for (const data in grupos) {
+                const numId = data.replace(/\//g, '');
+                const isHoje = data === new Date().toLocaleDateString('pt-BR');
+                html += `
+                    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden mb-3 shadow-sm">
+                        <button onclick="toggleGrupo('${numId}')" class="w-full flex justify-between items-center p-4 bg-zinc-900/50 hover:bg-zinc-800/50 transition text-white font-bold text-sm">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-calendar-day text-emerald-500"></i> ${isHoje ? 'Hoje (' + data + ')' : data}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="bg-emerald-950/50 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px] border border-emerald-500/30">${grupos[data].length} pedidos</span>
+                                <i class="fa-solid fa-chevron-down text-zinc-500 transition-transform duration-300" id="icon-${numId}" style="transform: ${isHoje ? 'rotate(180deg)' : 'rotate(0deg)'}"></i>
+                            </div>
+                        </button>
+                        <div id="grupo-${numId}" class="${isHoje ? '' : 'hidden'} p-4 space-y-3 bg-black/20 border-t border-zinc-800/50">
+                            ${grupos[data].map(pedido => gerarHtmlPedido(pedido)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        window.toggleGrupo = function(id) {
+            const div = document.getElementById('grupo-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (div.classList.contains('hidden')) {
+                div.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                div.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+        
+
+        function gerarHtmlPedido(pedido) {
+            const realIndex = db.pedidos.findIndex(p => p.id === pedido.id);
+            const isFinalizado = pedido.status === 'Finalizado';
+            
+            let badgeColor = 'bg-amber-950/50 text-amber-400 border-amber-500/40';
+            if (pedido.status === 'Finalizado') badgeColor = 'bg-emerald-950/50 text-emerald-400 border-emerald-500/40';
+            else if (pedido.status === 'Pronto para Entrega') badgeColor = 'bg-red-950/60 text-red-400 border-red-500 animate-pulse';
+            
+            let badgeOrigem = pedido.origem === 'iFood' 
+                ? '<span class="bg-red-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 shadow-md shadow-red-900/50"><i class="fa-solid fa-utensils"></i> iFood</span>'
+                : '<span class="bg-green-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 shadow-md shadow-green-900/50"><i class="fa-brands fa-whatsapp"></i> Site Próprio</span>';
+            
+            return `
+                <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-md space-y-3.5 relative mb-4">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2.5 border-b border-zinc-800/80 pb-3.5">
+                        <!-- Linha 1: Número do Pedido, Origem e Status -->
+                        <div class="flex items-center justify-between sm:justify-start gap-2.5 w-full sm:w-auto">
+                            <div class="flex items-center gap-2.5">
+                                <span class="font-cinzel font-black text-white text-base whitespace-nowrap tracking-wide">Pedido #${pedido.id}</span>
+                                ${badgeOrigem}
+                            </div>
+                            <span class="sm:hidden px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap shrink-0 border ${badgeColor}">${pedido.status}</span>
+                        </div>
+                        
+                        <!-- Linha 2 (ou Lado Direito no PC): Horário, Tempo de Espera e Status PC -->
+                        <div class="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-1 sm:pt-0">
+                            <span class="text-xs text-zinc-400 font-medium whitespace-nowrap inline-flex items-center gap-1.5 bg-zinc-900/90 px-2.5 py-1 rounded-lg border border-zinc-800"><i class="fa-regular fa-clock text-amber-500"></i> ${pedido.data}</span>
+                            ${getTempoEsperaHtml(pedido.timestamp, pedido.status)}
+                            <span class="hidden sm:inline-flex px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 border ${badgeColor}">${pedido.status}</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-zinc-900/50 p-3 rounded-xl text-xs space-y-1.5 border border-zinc-800/80 text-white">
+                        <p><strong class="text-zinc-400">Cliente:</strong> ${pedido.cliente || 'Não informado'}</p>
+                        <p class="flex items-center gap-1"><strong class="text-zinc-400">WhatsApp:</strong> <button onclick="abrirWhatsAppLink('${pedido.whatsapp}')" class="text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> ${pedido.whatsapp || 'Não informado'}</button></p>
+                        <p><strong class="text-zinc-400">Endereço:</strong> ${pedido.endereco}</p>
+                        <p class="pt-1"><strong class="text-zinc-400">Pagamento:</strong> <span class="bg-zinc-800 px-1.5 py-0.5 rounded text-amber-300 font-bold">${pedido.pagamento || 'Padrão'}</span> ${pedido.trocoPara ? `(Troco p/ R$ ${pedido.trocoPara})` : ''}</p>
+                        ${pedido.observacaoGeral ? `<p class="text-amber-400 mt-1 pt-1 border-t border-zinc-800/50"><strong>Observação Geral:</strong> ${pedido.observacaoGeral}</p>` : ''}
+                    </div>
+
+                    <div class="space-y-1 text-xs text-zinc-300">
+                        <p class="font-bold text-zinc-500 uppercase tracking-wider text-[10px] mb-1">Itens do Pedido</p>
+                        ${pedido.itens.map(i => `<p class="font-medium">• ${i.quantidade}x ${i.nome} ${i.observacao ? `<span class="text-amber-500 font-normal ml-1">(Obs: ${i.observacao})</span>` : ''}</p>`).join('')}
+                    </div>
+
+                    <div class="bg-zinc-900/80 p-3 rounded-xl text-xs flex justify-between items-center text-zinc-300 border border-zinc-800">
+                        <span>Frete (${pedido.km} km): R$ ${pedido.frete.toFixed(2).replace('.', ',')}</span>
+                        <span class="font-cinzel font-black text-amber-400 text-sm">Total: R$ ${pedido.total.toFixed(2).replace('.', ',')}</span>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
+                        ${pedido.status !== 'Finalizado' ? `
+                            ${pedido.status === 'Pronto para Entrega' ? 
+                                `<button onclick="mudarStatusPedido(${realIndex}, 'Finalizado')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow flex items-center gap-1.5"><i class="fa-solid fa-check-double"></i> Concluir / Entregar</button>`
+                                :
+                                `<button onclick="mudarStatusPedido(${realIndex}, 'Pronto para Entrega')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow flex items-center gap-1.5"><i class="fa-solid fa-bell"></i> Marcar Pronto</button>`
+                            }
+                        ` : `
+                            <button onclick="mudarStatusPedido(${realIndex}, 'Pendente')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold text-xs px-3 py-2 rounded-xl transition shadow flex items-center gap-1.5"><i class="fa-solid fa-rotate-left"></i> Reabrir</button>
+                        `}
+                        <button onclick="abrirReciboImpressao(${realIndex})" class="bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold text-xs px-3 py-2 rounded-xl transition shadow flex items-center gap-1.5 border border-amber-600/40">
+                            <i class="fa-solid fa-print"></i> Recibo
+                        </button>
+                        <button onclick="enviarParaEntregador(${realIndex})" class="bg-green-600 hover:bg-green-500 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+                            <i class="fa-brands fa-whatsapp"></i> Entregador
+                        </button>
+                        <button onclick="excluirPedido(${realIndex})" class="bg-zinc-800 hover:bg-red-950 hover:border-red-900/50 border border-transparent text-red-400 font-bold text-xs px-3 py-2 rounded-xl transition ml-auto"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function mudarStatusPedido(index, novoStatus) {
+            db.pedidos[index].status = novoStatus;
+            salvarDB();
+            carregarListaPedidosAdmin();
+            if (typeof carregarListaFinalizadosAdmin === 'function') carregarListaFinalizadosAdmin();
+            if(document.getElementById('tab-conteudo-kds').classList.contains('hidden') === false) {
+                carregarKdsKanban();
+            }
+            atualizarBadgePedidos();
+            
+            let msg = "Status atualizado!";
+            if(novoStatus === 'Finalizado') msg = "Pedido finalizado e arquivado!";
+            else if(novoStatus === 'Pronto para Entrega') msg = "Pronto para entrega!";
+            else if(novoStatus === 'Em Preparo') msg = "Em preparo na cozinha!";
+            else if(novoStatus === 'Pendente') msg = "Pedido reaberto!";
+            
+            showToast(msg);
+        }
+
+        // Impressão Térmica
+        function abrirReciboImpressao(index) {
+            const pedido = db.pedidos[index];
+            const reciboEl = document.getElementById('modal-recibo-impressao');
+            
+            reciboEl.innerHTML = `
+                <div class="text-center font-bold text-sm pb-2 border-b border-dashed border-black">
+                    SAPIPA LANCHE<br>
+                    Lanches rústicos de qualidade<br>
+                    CNPJ: 00.000.000/0001-00
+                </div>
+                <div class="py-1">
+                    PEDIDO #${pedido.id} - ${pedido.data}<br>
+                    CLIENTE: ${pedido.cliente}<br>
+                    FONE: ${pedido.whatsapp}<br>
+                    ENDEREÇO: ${pedido.endereco}
+                </div>
+                <div class="border-t border-b border-dashed border-black py-1 my-1">
+                    ITENS DO PEDIDO:<br>
+                    ${pedido.itens.map(i => `${i.quantidade}x ${i.nome} - R$ ${i.subtotal.toFixed(2)} ${i.observacao ? `
+   (Obs: ${i.observacao})` : ''}`).join('<br>')}
+                </div>
+                <div class="space-y-0.5">
+                    Subtotal: R$ ${(pedido.total - pedido.frete + (pedido.desconto || 0)).toFixed(2)}<br>
+                    ${pedido.desconto > 0 ? `Desconto Cupom: - R$ ${pedido.desconto.toFixed(2)}<br>` : ''}
+                    Taxa Entrega (${pedido.km} km): R$ ${pedido.frete.toFixed(2)}<br>
+                    <strong>TOTAL: R$ ${pedido.total.toFixed(2)}</strong><br>
+                    <br>PAGAMENTO: ${pedido.pagamento || 'N/A'}<br>
+                    ${pedido.trocoPara ? `TROCO PARA: R$ ${pedido.trocoPara}<br>` : ''}
+                    ${pedido.observacaoGeral ? `OBS: ${pedido.observacaoGeral}` : ''}
+                </div>
+                <div class="text-center pt-3 border-t border-dashed border-black text-[10px]">
+                    Obrigado pela preferência!<br>
+                    Bom apetite!
+                </div>
+            `;
+
+            document.getElementById('modal-recibo-impressao-container').classList.remove('hidden');
+        }
+
+        function fecharReciboImpressao() {
+            document.getElementById('modal-recibo-impressao-container').classList.add('hidden');
+        }
+
+        function enviarParaEntregador(index) {
+            const pedido = db.pedidos[index];
+            const foneEntregador = db.config.whatsappEntregador || "559299072636";
+
+            let msg = `*OLÁ, ENTREGADOR! NOVO PEDIDO PRONTO PARA ENTREGA* ( #${pedido.id} )%0A%0A`;
+            msg += `👤 *Cliente:* ${pedido.cliente}%0A`;
+            msg += `📞 *WhatsApp:* ${pedido.whatsapp}%0A`;
+            msg += `📍 *Endereço de Destino:* ${pedido.endereco}%0A`;
+            msg += `🛣️ *Distância:* ${pedido.km} km%0A`;
+            msg += `📦 *Taxa a receber / Cobrar:* R$ ${pedido.frete.toFixed(2)}%0A`;
+            msg += `💰 *Valor Total do Pedido:* R$ ${pedido.total.toFixed(2)}%0A`;
+            if(pedido.observacaoGeral) msg += `💬 *Obs Geral:* ${pedido.observacaoGeral}%0A`;
+            msg += `%0AItens:%0A`;
+            pedido.itens.forEach(i => {
+                msg += `• ${i.quantidade}x ${i.nome}%0A`;
+            });
+            msg += `%0ABom trabalho!`;
+
+            abrirWhatsAppLink(foneEntregador, msg);
+        }
+
+        function excluirPedido(index) {
+            if(confirm("Deseja realmente remover este pedido do histórico?")) {
+                db.pedidos.splice(index, 1);
+                salvarDB();
+                carregarListaPedidosAdmin();
+                showToast("Pedido excluído!");
+            }
+        }
+
+        function limparHistoricoPedidos() {
+            if(confirm("Deseja apagar todo o histórico de pedidos?")) {
+                db.pedidos = [];
+                salvarDB();
+                carregarListaPedidosAdmin();
+                showToast("Histórico limpo!");
+            }
+        }
+
+        // Entregadores CRUD
+        function carregarListaEntregadoresAdmin() {
+            const container = document.getElementById('admin-lista-entregadores');
+            container.innerHTML = db.entregadores.map(e => `
+                <div class="flex justify-between items-center p-3">
+                    <div>
+                        <h5 class="font-bold text-sm text-white">${e.nome}</h5>
+                        <p class="text-xs text-zinc-400">Fone: ${e.fone} • Veículo: ${e.veiculo}</p>
+                    </div>
+                    <button onclick="excluirEntregador(${e.id})" class="text-red-400 hover:bg-zinc-800 p-2 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function salvarEntregador() {
+            const nome = document.getElementById('entregador-nome').value.trim();
+            const fone = document.getElementById('entregador-fone').value.trim();
+            const veiculo = document.getElementById('entregador-veiculo').value.trim();
+
+            if(!nome || !fone) {
+                showToast("Preencha o nome e o telefone do entregador.", "error");
+                return;
+            }
+
+            const novoId = db.entregadores.length > 0 ? Math.max(...db.entregadores.map(e => e.id)) + 1 : 1;
+            db.entregadores.push({ id: novoId, nome, fone, veiculo });
+            salvarDB();
+
+            document.getElementById('entregador-nome').value = '';
+            document.getElementById('entregador-fone').value = '';
+            document.getElementById('entregador-veiculo').value = '';
+            carregarListaEntregadoresAdmin();
+            showToast("Entregador cadastrado com sucesso!");
+        }
+
+        function excluirEntregador(id) {
+            db.entregadores = db.entregadores.filter(e => e.id !== id);
+            salvarDB();
+            carregarListaEntregadoresAdmin();
+            showToast("Entregador removido!");
+        }
+
+        // Cupons
+        function carregarListaCuponsAdmin() {
+            const container = document.getElementById('admin-lista-cupons');
+            container.innerHTML = db.cupons.map(c => `
+                <div class="flex justify-between items-center p-3">
+                    <div>
+                        <h5 class="font-bold text-sm text-amber-400 uppercase">${c.codigo}</h5>
+                        <p class="text-xs text-zinc-400">Desconto: ${c.valor}${c.tipo === 'porcentagem' ? '%' : ' R$'}</p>
+                    </div>
+                    <button onclick="excluirCupom('${c.codigo}')" class="text-red-400 hover:bg-zinc-800 p-2 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function salvarCupom() {
+            const codigo = document.getElementById('cupom-codigo').value.trim().toUpperCase();
+            const tipo = document.getElementById('cupom-tipo').value;
+            const valor = parseFloat(document.getElementById('cupom-valor').value);
+
+            if(!codigo || isNaN(valor)) {
+                showToast("Preencha o código e o valor do cupom.", "error");
+                return;
+            }
+
+            if(db.cupons.some(c => c.codigo === codigo)) {
+                showToast("Este código de cupom já existe!", "error");
+                return;
+            }
+
+            db.cupons.push({ codigo, tipo, valor });
+            salvarDB();
+            document.getElementById('cupom-codigo').value = '';
+            document.getElementById('cupom-valor').value = '';
+            carregarListaCuponsAdmin();
+            showToast("Cupom cadastrado com sucesso!");
+        }
+
+        function excluirCupom(codigo) {
+            db.cupons = db.cupons.filter(c => c.codigo !== codigo);
+            salvarDB();
+            carregarListaCuponsAdmin();
+            showToast("Cupom removido!");
+        }
+
+        function carregarListaProdutosAdmin() {
+            const container = document.getElementById('admin-lista-produtos');
+            container.innerHTML = db.produtos.map(p => `
+                <div class="flex justify-between items-center p-3">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.img}" class="w-10 h-10 object-cover rounded-lg border border-zinc-700">
+                        <div>
+                            <h5 class="font-cinzel font-bold text-sm text-white">${p.nome}</h5>
+                            <p class="text-xs text-zinc-400">R$ ${p.preco.toFixed(2)} • ${p.categoria}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="editarProduto(${p.id})" class="text-blue-400 hover:bg-zinc-800 p-2 rounded-lg"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="excluirProduto(${p.id})" class="text-red-400 hover:bg-zinc-800 p-2 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            renderizarCategorias();
+        }
+
+        function salvarProduto() {
+            const id = document.getElementById('prod-edit-id').value;
+            const nome = document.getElementById('prod-nome').value;
+            const categoria = document.getElementById('prod-categoria').value;
+            const preco = parseFloat(document.getElementById('prod-preco').value);
+            const img = document.getElementById('prod-img').value;
+            const desc = document.getElementById('prod-desc').value;
+
+            if(!nome || isNaN(preco)) {
+                showToast("Preencha pelo menos o nome e o preço.", "error");
+                return;
+            }
+
+            if(id) {
+                const prod = db.produtos.find(p => p.id == id);
+                prod.nome = nome;
+                prod.categoria = categoria;
+                prod.preco = preco;
+                prod.img = img || prod.img;
+                prod.desc = desc;
+                showToast("Produto atualizado!");
+            } else {
+                const novoId = db.produtos.length > 0 ? Math.max(...db.produtos.map(p => p.id)) + 1 : 1;
+                db.produtos.push({
+                    id: novoId,
+                    nome,
+                    categoria,
+                    preco,
+                    img: img || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60",
+                    desc
+                });
+                showToast("Produto adicionado!");
+            }
+
+            salvarDB();
+            limparFormProduto();
+            carregarListaProdutosAdmin();
+            renderizarProdutos();
+        }
+
+        function editarProduto(id) {
+            const p = db.produtos.find(prod => prod.id === id);
+            if(!p) return;
+            document.getElementById('prod-edit-id').value = p.id;
+            document.getElementById('prod-nome').value = p.nome;
+            document.getElementById('prod-categoria').value = p.categoria;
+            document.getElementById('prod-preco').value = p.preco;
+            document.getElementById('prod-img').value = p.img;
+            document.getElementById('prod-desc').value = p.desc;
+            document.getElementById('titulo-form-produto').innerText = "Editar Produto";
+        }
+
+        function limparFormProduto() {
+            document.getElementById('prod-edit-id').value = '';
+            document.getElementById('prod-nome').value = '';
+            document.getElementById('prod-preco').value = '';
+            document.getElementById('prod-img').value = '';
+            document.getElementById('prod-desc').value = '';
+            document.getElementById('titulo-form-produto').innerText = "Adicionar Novo Produto";
+        }
+
+        function excluirProduto(id) {
+            if(confirm("Deseja realmente excluir este produto?")) {
+                db.produtos = db.produtos.filter(p => p.id !== id);
+                salvarDB();
+                carregarListaProdutosAdmin();
+                renderizarProdutos();
+                showToast("Produto excluído!");
+            }
+        }
+
+        function carregarListaCategoriasAdmin() {
+            const container = document.getElementById('admin-lista-categorias');
+            container.innerHTML = db.categorias.map((cat) => `
+                <div class="flex justify-between items-center p-3 cursor-grab active:cursor-grabbing bg-zinc-950 border border-zinc-800 rounded-xl mb-2" data-id="${cat}">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-grip-vertical text-zinc-500"></i>
+                        <span class="font-cinzel font-bold text-sm text-white">${cat}</span>
+                    </div>
+                    <button onclick="excluirCategoria('${cat}')" class="text-red-400 hover:bg-zinc-800 p-2 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+
+            if (window.sortableCategorias) {
+                window.sortableCategorias.destroy();
+            }
+            if (typeof Sortable !== 'undefined') {
+                window.sortableCategorias = new Sortable(container, {
+                    animation: 150,
+                    ghostClass: 'bg-zinc-900',
+                    onEnd: function (evt) {
+                        const oldIndex = evt.oldIndex;
+                        const newIndex = evt.newIndex;
+                        if (oldIndex !== newIndex) {
+                            const catMovida = db.categorias.splice(oldIndex, 1)[0];
+                            db.categorias.splice(newIndex, 0, catMovida);
+                            salvarDB();
+                            renderizarCategorias();
+                            showToast("Ordem das categorias atualizada!");
+                        }
+                    }
+                });
+            }
+        }
+
+        function adicionarCategoria() {
+            const nome = document.getElementById('nova-categoria-nome').value.trim();
+            if(!nome) return;
+            if(db.categorias.includes(nome)) {
+                showToast("Esta categoria já existe!", "error");
+                return;
+            }
+            db.categorias.push(nome);
+            salvarDB();
+            document.getElementById('nova-categoria-nome').value = '';
+            carregarListaCategoriasAdmin();
+            renderizarCategorias();
+            showToast("Categoria adicionada!");
+        }
+
+        function excluirCategoria(cat) {
+            if(confirm(`Deseja excluir a categoria "${cat}"?`)) {
+                db.categorias = db.categorias.filter(c => c !== cat);
+                salvarDB();
+                carregarListaCategoriasAdmin();
+                renderizarCategorias();
+                showToast("Categoria excluída!");
+            }
+        }
+
+        function formatarTempoDecorrido(mins) {
+            if (mins < 60) return `${mins} min`;
+            const horas = Math.floor(mins / 60);
+            const restoMins = mins % 60;
+            if (horas < 24) return restoMins > 0 ? `${horas}h ${restoMins}m` : `${horas}h`;
+            const dias = Math.floor(horas / 24);
+            const restoHoras = horas % 24;
+            return restoHoras > 0 ? `${dias}d ${restoHoras}h` : `${dias}d`;
+        }
+
+        function getTempoEsperaHtml(timestamp, status) {
+            if(!timestamp || status === 'Finalizado') return '';
+            const mins = Math.floor((Date.now() - timestamp) / 60000);
+            if(mins < 0) return '';
+            
+            let badgeClass = "text-emerald-400 bg-emerald-950/50 border border-emerald-500/30";
+            let iconPulse = "";
+            if (mins >= 15) {
+                badgeClass = "text-red-400 bg-red-950/50 border border-red-500/50";
+                iconPulse = "animate-pulse text-red-500";
+            } else if (mins >= 10) {
+                badgeClass = "text-amber-400 bg-amber-950/50 border border-amber-500/50";
+            }
+            
+            return `<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shrink-0 ${badgeClass} inline-flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock ${iconPulse}"></i> ${formatarTempoDecorrido(mins)}</span>`;
+        }
+
+        setInterval(() => {
+            const painel = document.getElementById('modal-admin-painel');
+            if (painel && !painel.classList.contains('hidden')) {
+                const kds = document.getElementById('tab-conteudo-kds');
+                const pedidos = document.getElementById('tab-conteudo-pedidos');
+                if(kds && !kds.classList.contains('hidden')) carregarKdsKanban();
+                if(pedidos && !pedidos.classList.contains('hidden')) carregarListaPedidosAdmin();
+                const finalizadosTab = document.getElementById('tab-conteudo-finalizados');
+                if(finalizadosTab && !finalizadosTab.classList.contains('hidden')) carregarListaFinalizadosAdmin();
+            }
+        }, 30000);
+    </script>
+
+    <script>
+        setTimeout(() => {
+            if (!document.getElementById('categorias-container').innerHTML.includes('<button')) {
+                document.body.innerHTML = '<div style="text-align:center; padding: 50px; color: white;"><h1>A carregar o Braw Lanche...</h1><p>Se esta página não carregar, limpe a cache do navegador ou recarregue.</p></div>';
+            }
+        }, 3000);
+    
+        // ================= FUNÇÃO DE DEBUG NUVEM =================
+        async function forcarEnvioNuvem() {
+            if(!supabaseClient) {
+                alert("Erro: O cliente Supabase não está configurado. Verifique as chaves.");
+                return;
+            }
+            try {
+                alert("A tentar enviar dados para o Supabase...");
+                const { data, error } = await supabaseClient.from('sistema_loja').update({ dados: db }).eq('id', 1);
+                
+                if (error) {
+                    alert("⚠️ ERRO DO SUPABASE: " + JSON.stringify(error));
+                } else {
+                    alert("✅ SUCESSO! Os dados foram guardados na Nuvem. Verifique o seu painel do Supabase, o '{}' já deve ter sumido!");
+                }
+            } catch(err) {
+                alert("⚠️ ERRO DE CÓDIGO: " + err.message);
+            }
+        }
+        // =========================================================
+        
+</script>
+</body>
+</html>
